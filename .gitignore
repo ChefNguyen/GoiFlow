@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,29 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright
+playwright-report/
+test-results/
+
+# local Claude overrides
+.claude/settings.local.json
+.claude/CLAUDE.local.md
+.claude/worktrees/
+.claude/history/
+.claude/projects/
+.claude/
+
+# local screenshots and temp captures
+screen_*.png
+
+# local database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# editor and OS
+Thumbs.db
+.vscode/
+.idea/

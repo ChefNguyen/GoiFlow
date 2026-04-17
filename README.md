@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GoiFlow
 
-## Getting Started
+GoiFlow is a workflow SaaS starter scaffold built for production-minded work with Claude Code. It ships a Next.js App Router baseline, Prisma multi-tenant foundations, Auth.js wiring, readiness endpoints, and a lean `.claude` harness so feature work can start inside a stable system.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Next.js App Router + TypeScript
+- Tailwind CSS v4
+- PostgreSQL + Prisma
+- Auth.js / NextAuth
+- Vitest + Playwright
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Folder Map
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `src/app/`: route groups for `(marketing)`, `(auth)`, `(app)`, and `api`
+- `src/features/`: domain slices for future product work
+- `src/components/`: `ui` primitives and shared app components
+- `src/server/`: db client, auth config, repositories, and services
+- `src/types/`: shared contracts and NextAuth augmentation
+- `docs/product/`, `docs/adr/`, `docs/runbooks/`: product specs, decisions, and operational docs
+- `.claude/`: project harness for Claude Code agents, rules, skills, commands, and MCP opt-ins
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Quick Start
 
-## Learn More
+1. Install dependencies with `npm install`
+2. Copy `.env.example` to `.env`
+3. Run `npm run db:generate`
+4. Start the app with `npm run dev`
 
-To learn more about Next.js, take a look at the following resources:
+## Quality Gates
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `npm run lint`
+- `npm run typecheck`
+- `npm run db:validate`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run build`
+- `npm run test:e2e`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Working With Claude Code
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Treat [`CLAUDE.md`](/C:/Users/ADMIN/Documents/Project/goiflow_recovery/CLAUDE.md) as the primary operating guide.
+- Keep product specs in `docs/product/`, ADRs in `docs/adr/`, and runbooks in `docs/runbooks/`.
+- Keep secrets and local-only overrides out of git by using `.env`, `.claude/settings.local.json`, and `.claude/CLAUDE.local.md`.
