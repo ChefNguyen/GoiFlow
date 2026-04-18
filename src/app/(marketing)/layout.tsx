@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/shared/site-header";
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[var(--color-surface)] text-[var(--color-on-surface)]">
       <SiteHeader />
       <main>{children}</main>
       <SiteFooter />

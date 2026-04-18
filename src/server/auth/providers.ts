@@ -35,25 +35,36 @@ function getProviderId(providerId: string) {
   return providerId === "credentials" ? DEV_AUTH_ID : providerId;
 }
 
-function getOAuthProviders(input: AuthEnv) {
-  const providers = [];
+type ProviderDescriptor = {
+  id: string;
+  name: string;
+};
 
-  if (input.GITHUB_ID && input.GITHUB_SECRET) {
-    providers.push(
-      GitHubProvider({
-        clientId: input.GITHUB_ID,
-        clientSecret: input.GITHUB_SECRET,
-      }),
-    );
+function getOAuthProviders(input: AuthEnv): ProviderDescriptor[] {
+  const providers: ProviderDescriptor[] = [];
+
+  const githubProvider =
+    input.GITHUB_ID && input.GITHUB_SECRET
+      ? GitHubProvider({
+          clientId: input.GITHUB_ID,
+          clientSecret: input.GITHUB_SECRET,
+        })
+      : null;
+
+  if (githubProvider) {
+    providers.push(githubProvider);
   }
 
-  if (input.GOOGLE_CLIENT_ID && input.GOOGLE_CLIENT_SECRET) {
-    providers.push(
-      GoogleProvider({
-        clientId: input.GOOGLE_CLIENT_ID,
-        clientSecret: input.GOOGLE_CLIENT_SECRET,
-      }),
-    );
+  const googleProvider =
+    input.GOOGLE_CLIENT_ID && input.GOOGLE_CLIENT_SECRET
+      ? GoogleProvider({
+          clientId: input.GOOGLE_CLIENT_ID,
+          clientSecret: input.GOOGLE_CLIENT_SECRET,
+        })
+      : null;
+
+  if (googleProvider) {
+    providers.push(googleProvider);
   }
 
   return providers;
@@ -67,7 +78,7 @@ export interface EnabledAuthProvider {
 }
 
 export function getEnabledAuthProviders(input: AuthEnv = env) {
-  const providers = getOAuthProviders(input);
+  const providers = [...getOAuthProviders(input)];
 
   if (isDevAuthEnabled(input)) {
     providers.unshift(getDevCredentialsProvider());
@@ -88,5 +99,3 @@ export function getEnabledAuthProviderDescriptors(
 export function hasOAuthProviders(input: AuthEnv = env) {
   return getOAuthProviders(input).length > 0;
 }
-
-

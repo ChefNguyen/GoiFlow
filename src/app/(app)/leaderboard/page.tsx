@@ -1,100 +1,198 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-const leaderboard = [
+type PodiumEntry = {
+  rank: number;
+  name: string;
+  score: string;
+  streak: string;
+  height: string;
+  outerClassName: string;
+  barClassName: string;
+  rankClassName: string;
+  nameClassName: string;
+  highlighted?: boolean;
+};
+
+type LeaderboardEntry = {
+  rank: number;
+  name: string;
+  score: string;
+  streak: string;
+  active?: boolean;
+  muted?: boolean;
+};
+
+const podiumEntries: PodiumEntry[] = [
+  {
+    rank: 2,
+    name: "ZenMaster",
+    score: "11,980",
+    streak: "12 wins",
+    height: "h-[140px]",
+    outerClassName: "max-w-[160px]",
+    barClassName: "bg-[var(--color-surface-container-high)] border-[var(--color-primary)]",
+    rankClassName: "text-4xl text-[var(--color-primary)] opacity-20",
+    nameClassName: "text-2xl",
+  },
+  {
+    rank: 1,
+    name: "Calligrapher",
+    score: "12,420",
+    streak: "18 wins",
+    height: "h-[200px]",
+    outerClassName: "max-w-[180px]",
+    barClassName: "bg-[var(--color-primary)] border-[var(--color-primary)]",
+    rankClassName: "text-6xl text-[var(--color-on-primary)] opacity-20",
+    nameClassName: "text-3xl",
+    highlighted: true,
+  },
+  {
+    rank: 3,
+    name: "KanaPulse",
+    score: "10,640",
+    streak: "9 wins",
+    height: "h-[100px]",
+    outerClassName: "max-w-[160px]",
+    barClassName: "bg-[var(--color-surface)] border-[var(--color-outline-variant)]",
+    rankClassName: "text-4xl text-[var(--color-primary)] opacity-20",
+    nameClassName: "text-2xl",
+  },
+];
+
+const leaderboardEntries: LeaderboardEntry[] = [
   { rank: 1, name: "Calligrapher", score: "12,420", streak: "18 wins", active: true },
   { rank: 2, name: "ZenMaster", score: "11,980", streak: "12 wins" },
   { rank: 3, name: "KanaPulse", score: "10,640", streak: "9 wins" },
   { rank: 4, name: "InkRunner", score: "9,880", streak: "6 wins" },
-  { rank: 5, name: "SoraType", score: "9,210", streak: "5 wins" },
-];
-
-const summary = [
-  { label: "Global rank", value: "#18", note: "Across all active Goi Furō players this month." },
-  { label: "Best streak", value: "9 rooms", note: "Longest uninterrupted session win run." },
-  { label: "Accuracy", value: "94%", note: "Average correctness across recent competitive rounds." },
+  { rank: 5, name: "SoraType", score: "9,210", streak: "5 wins", muted: true },
 ];
 
 export default function LeaderboardPage() {
   return (
-    <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-8 lg:px-10 lg:py-10">
-      <div className="space-y-10">
-        <div className="space-y-4 border-b border-[var(--color-outline-variant)] pb-8">
-          <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-            Competitive / Leaderboard
+    <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-16">
+      <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+        <header className="mb-20 text-center">
+          <h1 className="mb-4 font-[family-name:var(--font-headline)] text-5xl font-bold uppercase tracking-tight text-[var(--color-primary)] md:text-6xl">
+            Results
+          </h1>
+          <p className="font-[family-name:var(--font-body)] text-sm uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+            Shiritori Room: SI42 • 24 Chain Length
           </p>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl space-y-4">
-              <h1 className="text-5xl font-bold leading-none tracking-tight text-[var(--color-primary)] lg:text-6xl">
-                Ranking board
-              </h1>
-              <p className="max-w-2xl text-sm leading-7 tracking-[0.02em] text-[var(--color-secondary)]">
-                Compare active study performance, track recent streaks, and see where your current session rhythm places you.
-              </p>
-            </div>
-            <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] px-4 py-3 text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-              Monthly standings
-            </div>
-          </div>
-        </div>
+        </header>
 
-        <div className="grid gap-px border border-[var(--color-outline-variant)] bg-[var(--color-outline-variant)] xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-          <section className="bg-[var(--color-surface-container-lowest)] p-6 lg:p-7">
-            <div className="space-y-4">
-              <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Top players
-              </p>
-              <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)]">
-                {leaderboard.map((entry) => (
-                  <div
+        <section className="mb-24 flex h-64 w-full max-w-3xl items-end justify-center gap-2 md:gap-6">
+          {podiumEntries.map((entry) => (
+            <div
+              key={entry.rank}
+              className={`flex w-1/3 flex-col items-center ${entry.outerClassName}`}
+            >
+              <div className="mb-4 text-center">
+                {entry.highlighted ? (
+                  <span
+                    className="material-symbols-outlined mb-1 text-[var(--color-primary)]"
+                    style={{ fontVariationSettings: '"FILL" 1' }}
+                  >
+                    workspace_premium
+                  </span>
+                ) : null}
+                <span
+                  className={`block font-[family-name:var(--font-headline)] font-bold text-[var(--color-primary)] ${entry.nameClassName}`}
+                >
+                  {entry.name}
+                </span>
+                <span className="block font-[family-name:var(--font-body)] text-sm text-[var(--color-secondary)]">
+                  {entry.score}
+                </span>
+              </div>
+              <div
+                className={`flex w-full items-start justify-center border pt-4 ${entry.height} ${entry.barClassName} ${entry.highlighted ? "pt-6" : ""}`}
+              >
+                <span
+                  className={`font-[family-name:var(--font-headline)] font-bold ${entry.rankClassName}`}
+                >
+                  {entry.rank}
+                </span>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <section className="mb-16 w-full max-w-3xl">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b-2 border-[var(--color-primary)]">
+                  <th className="w-16 py-4 pl-4 pr-2 font-[family-name:var(--font-label)] text-xs uppercase tracking-widest text-[var(--color-secondary)]">
+                    Rank
+                  </th>
+                  <th className="px-4 py-4 font-[family-name:var(--font-label)] text-xs uppercase tracking-widest text-[var(--color-secondary)]">
+                    Username
+                  </th>
+                  <th className="px-4 py-4 text-right font-[family-name:var(--font-label)] text-xs uppercase tracking-widest text-[var(--color-secondary)]">
+                    Score
+                  </th>
+                  <th className="px-4 py-4 text-right font-[family-name:var(--font-label)] text-xs uppercase tracking-widest text-[var(--color-secondary)]">
+                    Streak
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="font-[family-name:var(--font-body)] text-sm">
+                {leaderboardEntries.map((entry) => (
+                  <tr
                     key={entry.rank}
                     className={entry.active
-                      ? "flex flex-col gap-3 border-b border-[var(--color-outline-variant)] bg-[var(--color-surface-container-highest)] p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-                      : "flex flex-col gap-3 border-b border-[var(--color-outline-variant)] p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"}
+                      ? "border-b border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)]"
+                      : "border-b border-[var(--color-outline-variant)]"}
                   >
-                    <div className="flex items-center gap-4">
-                      <span className={entry.active ? "w-8 text-lg font-bold text-[var(--color-primary)]" : "w-8 text-lg font-bold text-[var(--color-secondary)]"}>
-                        {entry.rank}
-                      </span>
-                      <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-[var(--color-primary)]">{entry.name}</h2>
-                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">{entry.streak}</p>
-                      </div>
-                    </div>
-                    <div className={entry.active ? "text-2xl font-semibold text-[var(--color-primary)]" : "text-2xl font-semibold text-[var(--color-secondary)]"}>
+                    <td className={entry.active
+                      ? "py-5 pl-4 pr-2 font-[family-name:var(--font-headline)] font-bold text-[var(--color-primary)]"
+                      : "py-5 pl-4 pr-2 font-[family-name:var(--font-headline)] text-[var(--color-secondary)]"}
+                    >
+                      {String(entry.rank).padStart(2, "0")}
+                    </td>
+                    <td className={entry.active
+                      ? "px-4 py-5 font-bold text-[var(--color-primary)]"
+                      : entry.muted
+                        ? "px-4 py-5 text-[var(--color-primary)] opacity-50"
+                        : "px-4 py-5 text-[var(--color-primary)]"}
+                    >
+                      {entry.name}
+                    </td>
+                    <td className={entry.muted
+                      ? "px-4 py-5 text-right opacity-50"
+                      : "px-4 py-5 text-right font-medium text-[var(--color-on-surface)]"}
+                    >
                       {entry.score}
-                    </div>
-                  </div>
+                    </td>
+                    <td className={entry.muted
+                      ? "px-4 py-5 text-right text-[var(--color-secondary)] opacity-50"
+                      : "px-4 py-5 text-right text-[var(--color-secondary)]"}
+                    >
+                      {entry.streak}
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            </div>
-          </section>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-          <section className="bg-[var(--color-surface-container-lowest)] p-6 lg:p-7">
-            <div className="space-y-8">
-              <div className="grid gap-px border border-[var(--color-outline-variant)] bg-[var(--color-outline-variant)]">
-                {summary.map((item) => (
-                  <article key={item.label} className="bg-[var(--color-surface-container-low)] p-5">
-                    <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                      {item.label}
-                    </p>
-                    <p className="mt-4 text-3xl font-semibold text-[var(--color-primary)]">{item.value}</p>
-                    <p className="mt-3 text-sm leading-6 tracking-[0.02em] text-[var(--color-secondary)]">{item.note}</p>
-                  </article>
-                ))}
-              </div>
-
-              <div className="space-y-3 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] p-4">
-                <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  Next action
-                </p>
-                <Button variant="primary" className="w-full justify-between px-4 py-3">
-                  <span>Start ranked session</span>
-                  <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-                </Button>
-              </div>
-            </div>
-          </section>
-        </div>
+        <section className="flex w-full flex-col items-center justify-center gap-6 sm:flex-row">
+          <Link href="/shiritori" className="w-full sm:w-auto">
+            <Button variant="primary" className="w-full px-10 py-4 text-sm tracking-widest !text-[var(--color-on-primary)] sm:w-auto">
+              Play Again
+            </Button>
+          </Link>
+          <Link href="/shiritori/setup" className="w-full sm:w-auto">
+            <Button variant="secondary" className="w-full px-10 py-4 text-sm tracking-widest sm:w-auto">
+              New Room
+            </Button>
+          </Link>
+          <Button variant="tertiary" className="w-full px-6 py-4 text-sm tracking-widest sm:w-auto">
+            Share
+          </Button>
+        </section>
       </div>
     </main>
   );

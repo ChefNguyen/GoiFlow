@@ -1,249 +1,155 @@
 "use client";
 
-import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 
-const collections = [
-  {
-    title: "Foundational radicals",
-    subtitle: "N5 · 24 entries",
-    description:
-      "Core shape families and recurring building blocks for early recognition drills.",
-    accent: "氵",
-  },
-  {
-    title: "Daily motion verbs",
-    subtitle: "N4 · 18 entries",
-    description:
-      "Common movement and routine vocabulary grouped for fast recall during live rounds.",
-    accent: "動",
-  },
-  {
-    title: "Weather and seasons",
-    subtitle: "N4 · 16 entries",
-    description:
-      "Review forecasts, seasonal terms, and temperature words before timed practice.",
-    accent: "季",
-  },
-  {
-    title: "Business essentials",
-    subtitle: "N3 · 20 entries",
-    description:
-      "Office language, scheduling terms, and meeting vocabulary for intermediate sets.",
-    accent: "会",
-  },
-  {
-    title: "Travel phrases",
-    subtitle: "N3 · 14 entries",
-    description:
-      "Transit, booking, and wayfinding vocabulary prepared as a compact review deck.",
-    accent: "旅",
-  },
-  {
-    title: "Abstract modifiers",
-    subtitle: "N2 · 12 entries",
-    description:
-      "Precision adjectives and adverbs that often decide leaderboard speed in advanced rounds.",
-    accent: "整",
-  },
+const jlptFilters = [
+  { label: "N5 (Beginner)", checked: false },
+  { label: "N4 (Basic)", checked: true },
+  { label: "N3 (Intermediate)", checked: false },
+  { label: "N2 (Pre-Advanced)", checked: false },
+  { label: "N1 (Advanced)", checked: false },
 ];
 
-const jlptFilters = ["N5", "N4", "N3", "N2", "N1"];
-const categoryFilters = ["Radicals", "Frequency", "Saved"];
+const categoryFilters = [
+  { label: "Radicals", icon: "category", active: true },
+  { label: "Frequency", icon: "sort", active: false },
+  { label: "Saved", icon: "favorite", active: false },
+];
+
+const entries = [
+  { level: "N4", kanji: "心", reading: "kokoro", meaning: "heart, mind, spirit" },
+  { level: "N4", kanji: "水", reading: "mizu", meaning: "water" },
+  { level: "N4", kanji: "木", reading: "ki", meaning: "tree, wood" },
+  { level: "N4", kanji: "火", reading: "hi", meaning: "fire" },
+  { level: "N4", kanji: "土", reading: "tsuchi", meaning: "earth, soil" },
+  { level: "N4", kanji: "金", reading: "kane", meaning: "gold, money" },
+  { level: "N4", kanji: "日", reading: "hi", meaning: "sun, day" },
+  { level: "N4", kanji: "月", reading: "tsuki", meaning: "moon, month" },
+  { level: "N4", kanji: "門", reading: "mon", meaning: "gates" },
+  { level: "N4", kanji: "雨", reading: "ame", meaning: "rain" },
+];
 
 export default function LibraryPage() {
-  const [selectedCollection, setSelectedCollection] = useState(collections[0]);
-
   return (
     <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)]">
-      <div className="grid min-h-[calc(100vh-65px)] lg:grid-cols-[280px_minmax(0,1fr)_360px]">
-        <aside className="hidden border-r border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] p-6 lg:block">
-          <div className="space-y-8 lg:sticky lg:top-6">
-            <div className="space-y-2 border-b border-[var(--color-outline-variant)] pb-6">
-              <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Reference controls
-              </p>
-              <h2 className="font-[family-name:var(--font-headline)] text-3xl leading-none text-[var(--color-primary)]">
-                Filters
-              </h2>
-            </div>
+      <div className="flex min-h-[calc(100vh-65px)] flex-col md:flex-row">
+        <aside className="hidden w-full shrink-0 border-r border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] p-6 md:flex md:w-[320px] md:flex-col md:overflow-y-auto">
+          <h2 className="mb-8 font-[family-name:var(--font-headline)] text-3xl text-[var(--color-primary)] tracking-[0.02em]">
+            Filters
+          </h2>
 
-            <section className="space-y-4">
-              <h3 className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                JLPT level
-              </h3>
-              <div className="space-y-2">
-                {jlptFilters.map((level, index) => (
-                  <label
-                    key={level}
-                    className={index === 1
-                      ? "flex cursor-pointer items-center gap-3 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-highest)] px-3 py-3 text-[var(--color-primary)]"
-                      : "flex cursor-pointer items-center gap-3 border border-transparent px-3 py-3 text-[var(--color-secondary)] transition-none hover:border-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container)] hover:text-[var(--color-primary)]"}
-                  >
-                    <Checkbox defaultChecked={index === 1} />
-                    <span className="flex-1 text-base font-medium">{level}</span>
-                    <span className="text-xs uppercase tracking-[0.2em]">
-                      {index === 1 ? "Active" : "Set"}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <h3 className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Collection type
-              </h3>
-              <div className="space-y-2">
-                {categoryFilters.map((category, index) => (
-                  <button
-                    key={category}
-                    type="button"
-                    className={index === 0
-                      ? "flex w-full items-center gap-3 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-highest)] px-3 py-3 text-left text-[var(--color-primary)]"
-                      : "flex w-full items-center gap-3 border border-transparent px-3 py-3 text-left text-[var(--color-secondary)] transition-none hover:border-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container)] hover:text-[var(--color-primary)]"}
-                  >
-                    <span className="material-symbols-outlined text-[20px]">
-                      {index === 0 ? "category" : index === 1 ? "sort" : "favorite"}
-                    </span>
-                    <span className="flex-1 text-base font-medium">{category}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <Button variant="primary" className="w-full py-3">
-              Apply filters
-            </Button>
-          </div>
-        </aside>
-
-        <section className="px-6 py-8 lg:px-10 lg:py-10">
-          <div className="space-y-10">
-            <div className="space-y-4 border-b border-[var(--color-outline-variant)] pb-8">
-              <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Reference / Library
-              </p>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-3xl space-y-4">
-                  <h1 className="text-5xl font-bold leading-none tracking-tight text-[var(--color-primary)] lg:text-6xl">
-                    Study library
-                  </h1>
-                  <p className="max-w-2xl text-sm leading-7 tracking-[0.02em] text-[var(--color-secondary)]">
-                    Browse curated kanji and vocabulary sets, keep your saved groups close, and jump back into focused review.
-                  </p>
-                </div>
-                <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] px-4 py-3 text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  48 results
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-px border border-[var(--color-outline-variant)] bg-[var(--color-outline-variant)] md:grid-cols-2 xl:grid-cols-3">
-              {collections.map((collection) => (
-                <article
-                  key={collection.title}
-                  className="flex min-h-[19rem] flex-col justify-between bg-[var(--color-surface-container-lowest)] p-6 lg:p-7"
+          <div className="mb-8">
+            <h3 className="mb-4 font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+              JLPT Level
+            </h3>
+            <div className="flex flex-col gap-2">
+              {jlptFilters.map((filter) => (
+                <label
+                  key={filter.label}
+                  className="flex cursor-pointer items-center gap-3 border border-transparent p-2 transition-none hover:border-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container)]"
                 >
-                  <div className="space-y-6">
-                    <div className="flex items-start justify-between gap-5">
-                      <div className="space-y-3">
-                        <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                          {collection.subtitle}
-                        </p>
-                        <h2 className="text-2xl font-semibold leading-tight text-[var(--color-primary)]">
-                          {collection.title}
-                        </h2>
-                      </div>
-                      <span className="font-[family-name:var(--font-headline)] text-6xl leading-none text-[var(--color-primary)]/75">
-                        {collection.accent}
-                      </span>
-                    </div>
-                    <p className="max-w-xs text-sm leading-6 tracking-[0.02em] text-[var(--color-secondary)]">
-                      {collection.description}
-                    </p>
-                  </div>
-
-                  <div className="mt-10 flex items-center justify-between gap-4 border-t border-[var(--color-outline-variant)] pt-4">
-                    <span className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                      Ready for review
-                    </span>
-                    <Button variant="secondary" className="px-4 py-2" onClick={() => setSelectedCollection(collection)}>
-                      Open set
-                    </Button>
-                  </div>
-                </article>
+                  <Checkbox defaultChecked={filter.checked} />
+                  <span className={filter.checked ? "text-base font-medium text-[var(--color-primary)]" : "text-base text-[var(--color-on-surface)]"}>
+                    {filter.label}
+                  </span>
+                </label>
               ))}
             </div>
+          </div>
 
-            <div className="flex flex-col gap-4 border-t border-[var(--color-outline-variant)] pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Page 1 of 4
-              </div>
-              <div className="flex items-center border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] text-sm text-[var(--color-secondary)]">
-                <button
-                  type="button"
-                  className="border-r border-[var(--color-outline-variant)] px-4 py-3 transition-none hover:bg-[var(--color-surface-container)] hover:text-[var(--color-primary)]"
+          <div className="mb-8">
+            <h3 className="mb-4 font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+              Category
+            </h3>
+            <div className="flex flex-col gap-2">
+              {categoryFilters.map((filter) => (
+                <label
+                  key={filter.label}
+                  className={filter.active
+                    ? "flex cursor-pointer items-center gap-3 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-highest)] p-2 transition-none"
+                    : "flex cursor-pointer items-center gap-3 border border-transparent p-2 transition-none hover:border-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container)]"}
                 >
-                  Previous
-                </button>
-                <span className="border-r border-[var(--color-outline-variant)] px-4 py-3 text-[var(--color-primary)]">
-                  1
-                </span>
-                <button
-                  type="button"
-                  className="px-4 py-3 transition-none hover:bg-[var(--color-surface-container)] hover:text-[var(--color-primary)]"
-                >
-                  Next
-                </button>
-              </div>
+                  <span className="material-symbols-outlined text-[20px]">{filter.icon}</span>
+                  <span className={filter.active ? "text-base font-medium text-[var(--color-primary)]" : "text-base text-[var(--color-on-surface)]"}>
+                    {filter.label}
+                  </span>
+                </label>
+              ))}
             </div>
+          </div>
+
+          <Button variant="primary" className="mt-auto px-4 py-3">
+            Apply Filters
+          </Button>
+        </aside>
+
+        <section className="flex-1 overflow-y-auto bg-[var(--color-surface)] p-6 md:p-8">
+          <header className="mb-12 flex flex-col gap-6 border-b-2 border-[var(--color-primary)] pb-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="mb-2 font-[family-name:var(--font-headline)] text-4xl font-bold text-[var(--color-primary)]">
+                Kanji Library
+              </h1>
+              <p className="text-base tracking-[0.02em] text-[var(--color-secondary)]">
+                Showing results for N4 Radicals
+              </p>
+            </div>
+            <div className="text-left sm:text-right">
+              <span className="font-[family-name:var(--font-headline)] text-2xl font-bold text-[var(--color-primary)]">
+                142
+              </span>
+              <span className="ml-0 block font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)] sm:ml-2 sm:inline">
+                Entries Found
+              </span>
+            </div>
+          </header>
+
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {entries.map((entry) => (
+              <article
+                key={entry.kanji}
+                className="group relative flex cursor-pointer flex-col border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] p-6 transition-none hover:bg-[var(--color-surface-container-low)]"
+              >
+                <div className="absolute top-3 right-3 border border-[var(--color-primary)] px-2 py-1">
+                  <span className="text-[0.65rem] font-bold text-[var(--color-primary)]">{entry.level}</span>
+                </div>
+                <div className="flex flex-1 items-center justify-center py-8">
+                  <span className="font-[family-name:var(--font-headline)] text-[4rem] font-bold text-[var(--color-primary)] transition-transform duration-75 group-hover:scale-105">
+                    {entry.kanji}
+                  </span>
+                </div>
+                <div className="mt-auto border-t border-[var(--color-outline-variant)] pt-4">
+                  <h2 className="mb-1 text-base font-medium text-[var(--color-primary)]">{entry.reading}</h2>
+                  <p className="text-sm text-[var(--color-secondary)]">{entry.meaning}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
+            <button
+              type="button"
+              className="border border-[var(--color-outline-variant)] bg-transparent px-4 py-2 text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
+            >
+              <span className="material-symbols-outlined mr-1 align-middle text-[20px]">chevron_left</span>
+              <span className="align-middle font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em]">Prev</span>
+            </button>
+            <div className="flex gap-2 font-[family-name:var(--font-headline)]">
+              <button type="button" className="flex h-10 w-10 items-center justify-center border border-transparent hover:bg-[var(--color-surface-container)]">1</button>
+              <button type="button" className="flex h-10 w-10 items-center justify-center border border-[var(--color-primary)] bg-[var(--color-primary)] font-bold text-[var(--color-on-primary)]">2</button>
+              <button type="button" className="flex h-10 w-10 items-center justify-center border border-transparent hover:bg-[var(--color-surface-container)]">3</button>
+              <span className="flex h-10 w-10 items-center justify-center text-[var(--color-secondary)]">...</span>
+              <button type="button" className="flex h-10 w-10 items-center justify-center border border-transparent hover:bg-[var(--color-surface-container)]">15</button>
+            </div>
+            <button
+              type="button"
+              className="border border-[var(--color-outline-variant)] bg-transparent px-4 py-2 text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
+            >
+              <span className="align-middle font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em]">Next</span>
+              <span className="material-symbols-outlined ml-1 align-middle text-[20px]">chevron_right</span>
+            </button>
           </div>
         </section>
-
-        <aside className="hidden border-l border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] p-6 lg:block">
-          <div className="lg:sticky lg:top-6 space-y-8">
-            <div className="space-y-2 border-b border-[var(--color-outline-variant)] pb-6">
-              <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Kanji detail
-              </p>
-              <h2 className="font-[family-name:var(--font-headline)] text-3xl leading-none text-[var(--color-primary)]">
-                {selectedCollection.accent}
-              </h2>
-              <p className="text-sm text-[var(--color-secondary)]">{selectedCollection.subtitle}</p>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-[var(--color-primary)]">
-                {selectedCollection.title}
-              </h3>
-              <p className="text-sm leading-6 tracking-[0.02em] text-[var(--color-secondary)]">
-                {selectedCollection.description}
-              </p>
-            </div>
-
-            <div className="space-y-3 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] p-4">
-              <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Readings
-              </p>
-              <p className="text-lg font-semibold text-[var(--color-primary)]">オン: コレクション</p>
-              <p className="text-lg font-semibold text-[var(--color-primary)]">くん: しゅうごう</p>
-              <p className="text-sm text-[var(--color-secondary)]">
-                Meaning cluster tailored for focused competitive review.
-              </p>
-            </div>
-
-            <div className="grid gap-3">
-              <Button variant="primary" className="w-full py-3">
-                Start review
-              </Button>
-              <Button variant="secondary" className="w-full py-3">
-                Save to profile
-              </Button>
-            </div>
-          </div>
-        </aside>
       </div>
     </main>
   );

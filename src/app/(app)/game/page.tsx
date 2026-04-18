@@ -26,9 +26,6 @@ export default function ActiveGamePage() {
     <div className="flex min-h-[calc(100vh-65px)] flex-col lg:h-[calc(100vh-65px)] lg:flex-row">
       <aside className="hidden w-72 shrink-0 border-r border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] lg:flex lg:flex-col">
         <div className="border-b border-[var(--color-outline-variant)] p-6">
-          <p className="font-[family-name:var(--font-label)] text-[0.75rem] font-bold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-            Session data
-          </p>
           <h2 className="mt-1 text-lg font-bold text-[var(--color-primary)]">
             Word history
           </h2>
@@ -118,9 +115,6 @@ export default function ActiveGamePage() {
       <aside className="hidden w-72 shrink-0 border-l border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] lg:flex lg:flex-col">
         <div className="flex items-start justify-between border-b border-[var(--color-outline-variant)] p-6">
           <div>
-            <p className="font-[family-name:var(--font-label)] text-[0.75rem] font-bold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-              Study session
-            </p>
             <h2 className="mt-1 text-lg font-bold text-[var(--color-primary)]">
               ROOM_CODE: BK22
             </h2>
@@ -160,9 +154,11 @@ export default function ActiveGamePage() {
               View results
             </Button>
           </Link>
-          <Button variant="secondary" className="w-full py-3">
-            Leave session
-          </Button>
+          <Link href="/game/setup" className="block">
+            <Button variant="secondary" className="w-full py-3">
+              Leave
+            </Button>
+          </Link>
         </div>
       </aside>
     </div>

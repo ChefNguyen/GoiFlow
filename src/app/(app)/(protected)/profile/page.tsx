@@ -1,94 +1,176 @@
-const statCards = [
-  { label: "Rooms played", value: "128", note: "Completed across quiz and head-to-head practice." },
-  { label: "Words mastered", value: "1,240", note: "Stable recall across saved study groups and live sessions." },
-  { label: "Current focus", value: "JLPT N3", note: "Main study band used for recent competitive rounds." },
+const stats = [
+  { label: "Total Kanji Mastered", value: "1,492", suffix: "", icon: "menu_book", filled: false },
+  { label: "Current Streak", value: "48", suffix: "Days", icon: "local_fire_department", filled: true },
+  { label: "Accuracy Rate", value: "94.2", suffix: "%", icon: "done_all", filled: false },
 ];
 
-const activity = [
-  { label: "Accuracy trend", value: "+6%", description: "Improved over the last ten rooms after shorter review cycles." },
-  { label: "Fastest response", value: "3.8s", description: "Best recorded answer speed in active kanji sessions." },
-  { label: "Saved sets", value: "14", description: "Pinned collections used as the primary review queue." },
+const sessions = [
+  { date: "Today", icon: "menu_book", title: "N2 Kanji Review", subtitle: "45 items reviewed", score: "98% Correct", xp: "+12 XP" },
+  { date: "Yesterday", icon: "quiz", title: "Radical Recognition Test", subtitle: "20 items reviewed", score: "100% Correct", xp: "+8 XP" },
+  { date: "Oct 24", icon: "library_books", title: "New Vocabulary Lesson: N3", subtitle: "15 new items learned", score: "-", xp: "+25 XP" },
+  { date: "Oct 23", icon: "menu_book", title: "N2 Kanji Review", subtitle: "82 items reviewed", score: "91% Correct", xp: "+18 XP" },
 ];
+
+const heatmapColumns = [
+  ["empty", "mid", "empty", "strong", "medium", "light", "empty"],
+  ["strong", "strong", "medium", "strong", "mid", "strong", "strong"],
+  ["light", "empty", "mid", "medium", "strong", "mid", "empty"],
+  ["empty", "light", "mid", "strong", "medium", "mid", "light"],
+  ["strong", "mid", "empty", "strong", "strong", "medium", "mid"],
+  ["light", "mid", "strong", "medium", "empty", "strong", "mid"],
+  ["empty", "light", "mid", "strong", "mid", "light", "empty"],
+  ["strong", "medium", "mid", "strong", "strong", "medium", "strong"],
+  ["light", "empty", "mid", "medium", "strong", "light", "empty"],
+  ["mid", "strong", "medium", "strong", "mid", "strong", "medium"],
+  ["empty", "light", "mid", "strong", "medium", "mid", "empty"],
+  ["strong", "medium", "strong", "mid", "light", "strong", "medium"],
+];
+
+const cellClassMap = {
+  empty: "border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-high)]",
+  light: "bg-[var(--color-surface-tint)] opacity-20",
+  mid: "bg-[var(--color-surface-tint)] opacity-40",
+  medium: "bg-[var(--color-primary)] opacity-60",
+  strong: "bg-[var(--color-primary)] opacity-100",
+};
 
 export default function ProfilePage() {
   return (
     <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-8 lg:px-10 lg:py-10">
-      <div className="space-y-10">
-        <div className="space-y-4 border-b border-[var(--color-outline-variant)] pb-8">
-          <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-            Profile / Stats
-          </p>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl space-y-4">
-              <h1 className="text-5xl font-bold leading-none tracking-tight text-[var(--color-primary)] lg:text-6xl">
-                Study profile
-              </h1>
-              <p className="max-w-2xl text-sm leading-7 tracking-[0.02em] text-[var(--color-secondary)]">
-                Review long-form progress, recent study signals, and the metrics shaping your next focused practice cycle.
-              </p>
-            </div>
-            <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] px-4 py-3 text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-              Active learner profile
+      <div className="mx-auto max-w-6xl space-y-12">
+        <section className="flex flex-col gap-6 md:flex-row md:items-end">
+          <div className="h-28 w-28 shrink-0 overflow-hidden border border-[var(--color-primary)] bg-[var(--color-surface-container-low)]">
+            <div className="flex h-full w-full items-center justify-center font-[family-name:var(--font-headline)] text-4xl font-bold text-[var(--color-primary)]">
+              K
             </div>
           </div>
-        </div>
 
-        <div className="grid gap-px border border-[var(--color-outline-variant)] bg-[var(--color-outline-variant)] xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-          <section className="bg-[var(--color-surface-container-lowest)] p-6 lg:p-7">
-            <div className="space-y-8">
-              <div className="space-y-5 border-b border-[var(--color-outline-variant)] pb-6">
-                <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  Profile overview
-                </p>
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-3">
-                    <div className="flex h-20 w-20 items-center justify-center border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] font-[family-name:var(--font-headline)] text-3xl text-[var(--color-primary)]">
-                      C
-                    </div>
-                    <div className="space-y-1">
-                      <h2 className="text-3xl font-semibold text-[var(--color-primary)]">Calligrapher</h2>
-                      <p className="text-sm text-[var(--color-secondary)]">Competitive vocabulary learner</p>
-                    </div>
-                  </div>
-                  <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] px-4 py-3 text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                    Ranked profile
-                  </div>
+          <div className="flex flex-col gap-2">
+            <h1 className="font-[family-name:var(--font-headline)] text-5xl font-bold tracking-tight text-[var(--color-primary)] md:text-7xl">
+              Katsumi_92
+            </h1>
+            <p className="font-[family-name:var(--font-label)] text-sm font-medium uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+              Level 42 Mastery · Scholar Rank
+            </p>
+          </div>
+
+          <div className="md:ml-auto md:mt-0 mt-4 flex gap-4">
+            <button
+              type="button"
+              className="flex items-center gap-2 border border-[var(--color-primary)] bg-[var(--color-primary)] px-6 py-3 font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-on-primary)] transition-none hover:bg-[var(--color-primary-container)]"
+            >
+              <span className="material-symbols-outlined text-sm">edit</span>
+              Edit Profile
+            </button>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-6 font-[family-name:var(--font-headline)] text-2xl font-semibold text-[var(--color-primary)]">
+            Current Standing
+          </h2>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {stats.map((stat) => (
+              <article
+                key={stat.label}
+                className={stat.filled
+                  ? "relative flex flex-col border border-[var(--color-primary)] bg-[var(--color-surface-container-lowest)] p-8 transition-none hover:bg-[var(--color-surface-container)]"
+                  : "relative flex flex-col border border-[var(--color-primary)] bg-[var(--color-surface-container-low)] p-8 transition-none hover:bg-[var(--color-surface-container)]"}
+              >
+                <span className="mb-4 font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+                  {stat.label}
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-[family-name:var(--font-headline)] text-6xl font-bold text-[var(--color-primary)]">
+                    {stat.value}
+                  </span>
+                  {stat.suffix ? (
+                    <span className={stat.suffix === "%" ? "font-[family-name:var(--font-headline)] text-xl text-[var(--color-secondary)]" : "font-[family-name:var(--font-label)] text-sm uppercase tracking-[0.2em] text-[var(--color-secondary)]"}>
+                      {stat.suffix}
+                    </span>
+                  ) : null}
                 </div>
-              </div>
+                <div className="absolute right-0 bottom-0 p-4 opacity-10">
+                  <span className="material-symbols-outlined text-6xl">{stat.icon}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
 
-              <div className="grid gap-px border border-[var(--color-outline-variant)] bg-[var(--color-outline-variant)] md:grid-cols-3">
-                {statCards.map((card) => (
-                  <article key={card.label} className="bg-[var(--color-surface-container-low)] p-5">
-                    <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">{card.label}</p>
-                    <p className="mt-4 text-3xl font-semibold text-[var(--color-primary)]">{card.value}</p>
-                    <p className="mt-3 text-sm leading-6 tracking-[0.02em] text-[var(--color-secondary)]">{card.note}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
+        <section>
+          <div className="mb-6 flex items-end justify-between border-b border-[var(--color-outline-variant)] pb-2">
+            <h2 className="font-[family-name:var(--font-headline)] text-2xl font-semibold text-[var(--color-primary)]">
+              Study Consistency
+            </h2>
+            <span className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+              Last 30 Days
+            </span>
+          </div>
 
-          <section className="bg-[var(--color-surface-container-lowest)] p-6 lg:p-7">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  Activity signals
-                </p>
-                <div className="space-y-3">
-                  {activity.map((item) => (
-                    <div key={item.label} className="space-y-2 border-b border-[var(--color-outline-variant)] pb-4 last:border-b-0 last:pb-0">
-                      <div className="flex flex-col gap-1">
-                        <h3 className="text-lg font-semibold text-[var(--color-primary)]">{item.label}</h3>
-                        <span className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">{item.value}</span>
-                      </div>
-                      <p className="text-sm leading-6 tracking-[0.02em] text-[var(--color-secondary)]">{item.description}</p>
-                    </div>
+          <div className="overflow-x-auto border border-[var(--color-outline)] bg-[var(--color-surface-container-lowest)] p-6">
+            <div className="flex min-w-[600px] gap-1">
+              {heatmapColumns.map((column, index) => (
+                <div key={index} className="flex flex-col gap-1">
+                  {column.map((cell, cellIndex) => (
+                    <div key={cellIndex} className={`h-4 w-4 ${cellClassMap[cell as keyof typeof cellClassMap]}`} />
                   ))}
                 </div>
-              </div>
+              ))}
             </div>
-          </section>
-        </div>
+            <div className="mt-4 flex items-center justify-end gap-2 text-xs text-[var(--color-secondary)]">
+              <span>Less</span>
+              <div className="h-3 w-3 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-high)]" />
+              <div className="h-3 w-3 bg-[var(--color-surface-tint)] opacity-20" />
+              <div className="h-3 w-3 bg-[var(--color-primary)] opacity-60" />
+              <div className="h-3 w-3 bg-[var(--color-primary)] opacity-100" />
+              <span>More</span>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-6 flex items-end justify-between border-b border-[var(--color-outline-variant)] pb-2">
+            <h2 className="font-[family-name:var(--font-headline)] text-2xl font-semibold text-[var(--color-primary)]">
+              Recent Sessions
+            </h2>
+            <a
+              href="/history"
+              className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-primary)] underline-offset-4 hover:underline"
+            >
+              View All History
+            </a>
+          </div>
+
+          <div className="flex w-full flex-col border-t border-[var(--color-primary)]">
+            {sessions.map((session) => (
+              <div
+                key={`${session.date}-${session.title}`}
+                className="flex flex-col items-start border-b border-[var(--color-outline-variant)] px-4 py-4 transition-none hover:bg-[var(--color-surface-container)] md:flex-row md:items-center"
+              >
+                <div className="w-24 shrink-0 font-[family-name:var(--font-label)] text-sm uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+                  {session.date}
+                </div>
+                <div className="flex flex-grow items-center gap-4">
+                  <span
+                    className="material-symbols-outlined text-[var(--color-secondary)]"
+                    style={{ fontVariationSettings: '"FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24' }}
+                  >
+                    {session.icon}
+                  </span>
+                  <div>
+                    <p className="font-medium text-[var(--color-primary)]">{session.title}</p>
+                    <p className="text-sm text-[var(--color-secondary)]">{session.subtitle}</p>
+                  </div>
+                </div>
+                <div className="mt-2 shrink-0 text-right md:mt-0 md:w-32">
+                  <span className="block font-medium text-[var(--color-primary)]">{session.score}</span>
+                  <span className="text-xs text-[var(--color-secondary)]">{session.xp}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </main>
   );

@@ -1,225 +1,198 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-const summaryCards = [
+type PodiumEntry = {
+  rank: number;
+  name: string;
+  score: string;
+  avgTime: string;
+  height: string;
+  outerClassName: string;
+  barClassName: string;
+  rankClassName: string;
+  nameClassName: string;
+  highlighted?: boolean;
+};
+
+type LeaderboardEntry = {
+  rank: number;
+  name: string;
+  score: string;
+  avgTime: string;
+  active?: boolean;
+  muted?: boolean;
+};
+
+const podiumEntries: PodiumEntry[] = [
   {
-    label: "Final score",
-    value: "4,250",
-    note: "Top result across the active room after the last kanji resolved.",
+    rank: 2,
+    name: "Kenta",
+    score: "9,420",
+    avgTime: "1.8s",
+    height: "h-[140px]",
+    outerClassName: "max-w-[160px]",
+    barClassName: "bg-[var(--color-surface-container-high)] border-[var(--color-primary)]",
+    rankClassName: "text-4xl text-[var(--color-primary)] opacity-20",
+    nameClassName: "text-2xl",
   },
   {
-    label: "Correct answers",
-    value: "34 / 40",
-    note: "Strong consistency through the closing rounds with only a few late misses.",
+    rank: 1,
+    name: "Yuki_99",
+    score: "12,850",
+    avgTime: "1.2s",
+    height: "h-[200px]",
+    outerClassName: "max-w-[180px]",
+    barClassName: "bg-[var(--color-primary)] border-[var(--color-primary)]",
+    rankClassName: "text-6xl text-[var(--color-on-primary)] opacity-20",
+    nameClassName: "text-3xl",
+    highlighted: true,
   },
   {
-    label: "Average speed",
-    value: "11.2s",
-    note: "Response timing stayed inside the standard 15-second profile.",
+    rank: 3,
+    name: "Akihiro",
+    score: "8,100",
+    avgTime: "2.1s",
+    height: "h-[100px]",
+    outerClassName: "max-w-[160px]",
+    barClassName: "bg-[var(--color-surface)] border-[var(--color-outline-variant)]",
+    rankClassName: "text-4xl text-[var(--color-primary)] opacity-20",
+    nameClassName: "text-2xl",
   },
 ];
 
-const ranking = [
-  { rank: 1, name: "Guest player", score: "4,250", status: "Top room score", active: true },
-  { rank: 2, name: "Alex M.", score: "3,900", status: "+350 behind" },
-  { rank: 3, name: "Sara K.", score: "3,120", status: "+1,130 behind" },
-  { rank: 4, name: "Kenji T.", score: "2,840", status: "+1,410 behind" },
-];
-
-const roundBreakdown = [
-  {
-    label: "Best streak",
-    value: "9 rounds",
-    description: "Longest uninterrupted run of correct readings before the final scoreboard lock.",
-  },
-  {
-    label: "Fastest answer",
-    value: "4.1 seconds",
-    description: "Quickest completed prompt during the middle phase of the session.",
-  },
-  {
-    label: "Review queue",
-    value: "6 kanji",
-    description: "Prompts worth revisiting before the next competitive room begins.",
-  },
+const leaderboardEntries: LeaderboardEntry[] = [
+  { rank: 1, name: "Yuki_99", score: "12,850", avgTime: "1.2s", active: true },
+  { rank: 2, name: "Kenta", score: "9,420", avgTime: "1.8s" },
+  { rank: 3, name: "Akihiro", score: "8,100", avgTime: "2.1s" },
+  { rank: 4, name: "Sakura_Chan", score: "7,650", avgTime: "2.4s" },
+  { rank: 5, name: "Guest_882", score: "4,200", avgTime: "3.5s", muted: true },
 ];
 
 export default function ResultsPage() {
   return (
-    <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-8 lg:px-10 lg:py-10">
-      <div className="space-y-10">
-        <div className="space-y-4 border-b border-[var(--color-outline-variant)] pb-8">
-          <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-            Session / Results
+    <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-16">
+      <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+        <header className="mb-20 text-center">
+          <h1 className="mb-4 font-[family-name:var(--font-headline)] text-5xl font-bold uppercase tracking-tight text-[var(--color-primary)] md:text-6xl">
+            Results
+          </h1>
+          <p className="font-[family-name:var(--font-body)] text-sm uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+            Room: 桜 (Sakura) • 10 Rounds
           </p>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl space-y-4">
-              <h1 className="text-5xl font-bold leading-none tracking-tight text-[var(--color-primary)] lg:text-6xl">
-                Final results
-              </h1>
-              <p className="max-w-2xl text-sm leading-7 tracking-[0.02em] text-[var(--color-secondary)]">
-                Review the final scoreboard, inspect standout moments from the last session, and choose the next practice route.
-              </p>
-            </div>
-            <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] px-4 py-3 text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-              Room BK22 complete
-            </div>
-          </div>
-        </div>
+        </header>
 
-        <div className="grid gap-px border border-[var(--color-outline-variant)] bg-[var(--color-outline-variant)] xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-          <section className="bg-[var(--color-surface-container-lowest)] p-6 lg:p-7">
-            <div className="space-y-8">
-              <div className="space-y-5 border-b border-[var(--color-outline-variant)] pb-6">
-                <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  Winner summary
-                </p>
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="space-y-3">
-                    <div className="flex h-24 w-24 items-center justify-center border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] font-[family-name:var(--font-headline)] text-4xl text-[var(--color-primary)]">
-                      1
-                    </div>
-                    <div className="space-y-1">
-                      <h2 className="text-3xl font-semibold text-[var(--color-primary)]">
-                        Top room finish
-                      </h2>
-                      <p className="text-sm text-[var(--color-secondary)]">
-                        Highest score in the room after 40 timed prompts.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] px-4 py-3 text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                    Highest score this round
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-px border border-[var(--color-outline-variant)] bg-[var(--color-outline-variant)] md:grid-cols-3">
-                {summaryCards.map((item) => (
-                  <article
-                    key={item.label}
-                    className="bg-[var(--color-surface-container-low)] p-5"
+        <section className="mb-24 flex h-64 w-full max-w-3xl items-end justify-center gap-2 md:gap-6">
+          {podiumEntries.map((entry) => (
+            <div
+              key={entry.rank}
+              className={`flex w-1/3 flex-col items-center ${entry.outerClassName}`}
+            >
+              <div className="mb-4 text-center">
+                {entry.highlighted ? (
+                  <span
+                    className="material-symbols-outlined mb-1 text-[var(--color-primary)]"
+                    style={{ fontVariationSettings: '"FILL" 1' }}
                   >
-                    <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                      {item.label}
-                    </p>
-                    <p className="mt-4 text-3xl font-semibold text-[var(--color-primary)]">
-                      {item.value}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 tracking-[0.02em] text-[var(--color-secondary)]">
-                      {item.note}
-                    </p>
-                  </article>
-                ))}
+                    workspace_premium
+                  </span>
+                ) : null}
+                <span
+                  className={`block font-[family-name:var(--font-headline)] font-bold text-[var(--color-primary)] ${entry.nameClassName}`}
+                >
+                  {entry.name}
+                </span>
+                <span className="block font-[family-name:var(--font-body)] text-sm text-[var(--color-secondary)]">
+                  {entry.score}
+                </span>
               </div>
+              <div
+                className={`flex w-full items-start justify-center border pt-4 ${entry.height} ${entry.barClassName} ${entry.highlighted ? "pt-6" : ""}`}
+              >
+                <span
+                  className={`font-[family-name:var(--font-headline)] font-bold ${entry.rankClassName}`}
+                >
+                  {entry.rank}
+                </span>
+              </div>
+            </div>
+          ))}
+        </section>
 
-              <div className="space-y-4">
-                <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  Final ranking
-                </p>
-                <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)]">
-                  {ranking.map((entry) => (
-                    <div
-                      key={entry.rank}
-                      className={entry.active
-                        ? "flex flex-col gap-3 border-b border-[var(--color-outline-variant)] bg-[var(--color-surface-container-highest)] p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-                        : "flex flex-col gap-3 border-b border-[var(--color-outline-variant)] p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"}
+        <section className="mb-16 w-full max-w-3xl">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b-2 border-[var(--color-primary)]">
+                  <th className="w-16 py-4 pl-4 pr-2 font-[family-name:var(--font-label)] text-xs uppercase tracking-widest text-[var(--color-secondary)]">
+                    Rank
+                  </th>
+                  <th className="px-4 py-4 font-[family-name:var(--font-label)] text-xs uppercase tracking-widest text-[var(--color-secondary)]">
+                    Username
+                  </th>
+                  <th className="px-4 py-4 text-right font-[family-name:var(--font-label)] text-xs uppercase tracking-widest text-[var(--color-secondary)]">
+                    Score
+                  </th>
+                  <th className="px-4 py-4 text-right font-[family-name:var(--font-label)] text-xs uppercase tracking-widest text-[var(--color-secondary)]">
+                    Avg Time
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="font-[family-name:var(--font-body)] text-sm">
+                {leaderboardEntries.map((entry) => (
+                  <tr
+                    key={entry.rank}
+                    className={entry.active
+                      ? "border-b border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)]"
+                      : "border-b border-[var(--color-outline-variant)]"}
+                  >
+                    <td className={entry.active
+                      ? "py-5 pl-4 pr-2 font-[family-name:var(--font-headline)] font-bold text-[var(--color-primary)]"
+                      : "py-5 pl-4 pr-2 font-[family-name:var(--font-headline)] text-[var(--color-secondary)]"}
                     >
-                      <div className="flex items-center gap-4">
-                        <span className={entry.active
-                          ? "w-6 text-lg font-bold text-[var(--color-primary)]"
-                          : "w-6 text-lg font-bold text-[var(--color-secondary)]"}
-                        >
-                          {entry.rank}
-                        </span>
-                        <div className="space-y-1">
-                          <h3 className={entry.active
-                            ? "text-lg font-semibold text-[var(--color-primary)]"
-                            : "text-lg font-semibold text-[var(--color-primary)]"}
-                          >
-                            {entry.name}
-                          </h3>
-                          <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                            {entry.status}
-                          </p>
-                        </div>
-                      </div>
-                      <div className={entry.active
-                        ? "text-2xl font-semibold text-[var(--color-primary)]"
-                        : "text-2xl font-semibold text-[var(--color-secondary)]"}
-                      >
-                        {entry.score}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
+                      {String(entry.rank).padStart(2, "0")}
+                    </td>
+                    <td className={entry.active
+                      ? "px-4 py-5 font-bold text-[var(--color-primary)]"
+                      : entry.muted
+                        ? "px-4 py-5 text-[var(--color-primary)] opacity-50"
+                        : "px-4 py-5 text-[var(--color-primary)]"}
+                    >
+                      {entry.name}
+                    </td>
+                    <td className={entry.muted
+                      ? "px-4 py-5 text-right opacity-50"
+                      : "px-4 py-5 text-right font-medium text-[var(--color-on-surface)]"}
+                    >
+                      {entry.score}
+                    </td>
+                    <td className={entry.muted
+                      ? "px-4 py-5 text-right text-[var(--color-secondary)] opacity-50"
+                      : "px-4 py-5 text-right text-[var(--color-secondary)]"}
+                    >
+                      {entry.avgTime}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-          <section className="bg-[var(--color-surface-container-lowest)] p-6 lg:p-7">
-            <div className="space-y-8">
-              <div className="space-y-4 border-b border-[var(--color-outline-variant)] pb-6">
-                <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  Round breakdown
-                </p>
-                <div className="space-y-3">
-                  {roundBreakdown.map((item) => (
-                    <div key={item.label} className="space-y-2 border-b border-[var(--color-outline-variant)] pb-4 last:border-b-0 last:pb-0">
-                      <div className="flex flex-col gap-1">
-                        <h3 className="text-lg font-semibold text-[var(--color-primary)]">
-                          {item.label}
-                        </h3>
-                        <span className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                          {item.value}
-                        </span>
-                      </div>
-                      <p className="text-sm leading-6 tracking-[0.02em] text-[var(--color-secondary)]">
-                        {item.description}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-4 border-b border-[var(--color-outline-variant)] pb-6">
-                <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  Next actions
-                </p>
-                <div className="space-y-3">
-                  <Link href="/game/setup" className="block">
-                    <Button variant="primary" className="w-full justify-between px-4 py-3">
-                      <span>Start another room</span>
-                      <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-                    </Button>
-                  </Link>
-                  <Link href="/library" className="block">
-                    <Button variant="secondary" className="w-full justify-between px-4 py-3">
-                      <span>Review weak kanji in library</span>
-                      <span className="material-symbols-outlined text-[20px]">menu_book</span>
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <p className="font-[family-name:var(--font-label)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                  Exit path
-                </p>
-                <div className="border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] p-4">
-                  <p className="mb-4 text-sm leading-6 tracking-[0.02em] text-[var(--color-secondary)]">
-                    Return to game setup and launch the next session when you are ready.
-                  </p>
-                  <Link href="/game/setup" className="block">
-                    <Button variant="secondary" className="w-full px-4 py-3">
-                      Back to game setup
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
+        <section className="flex w-full flex-col items-center justify-center gap-6 sm:flex-row">
+          <Link href="/game" className="w-full sm:w-auto">
+            <Button variant="primary" className="w-full px-10 py-4 text-sm tracking-widest !text-[var(--color-on-primary)] sm:w-auto">
+              Play Again
+            </Button>
+          </Link>
+          <Link href="/game/setup" className="w-full sm:w-auto">
+            <Button variant="secondary" className="w-full px-10 py-4 text-sm tracking-widest sm:w-auto">
+              New Room
+            </Button>
+          </Link>
+          <Button variant="tertiary" className="w-full px-6 py-4 text-sm tracking-widest sm:w-auto">
+            Share
+          </Button>
+        </section>
       </div>
     </main>
   );

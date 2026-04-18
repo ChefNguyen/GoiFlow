@@ -11,6 +11,7 @@ const navLinks = [
   { href: "/game/setup", label: "Game", isActive: (pathname: string) => pathname.startsWith("/game") },
   { href: "/shiritori", label: "Shiritori", isActive: (pathname: string) => pathname.startsWith("/shiritori") },
   { href: "/library", label: "Library", isActive: (pathname: string) => pathname.startsWith("/library") },
+  { href: "/history", label: "History", isActive: (pathname: string) => pathname.startsWith("/history") },
   { href: "/settings", label: "Settings", isActive: (pathname: string) => pathname.startsWith("/settings") },
 ];
 
@@ -75,7 +76,7 @@ export function AppShell({
             )}
           </div>
         </div>
-        <nav className="grid grid-cols-4 border-t border-[var(--color-outline-variant)] md:hidden">
+        <nav className="grid grid-cols-5 border-t border-[var(--color-outline-variant)] md:hidden">
           {navLinks.map((link) => {
             const isActive = link.isActive(pathname);
 
