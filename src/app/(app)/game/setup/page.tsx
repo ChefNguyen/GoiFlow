@@ -1,20 +1,101 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+type JlptLevel = "N5" | "N4" | "N3" | "N2" | "N1";
+
 export default function GameSetupPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [timePerKanji, setTimePerKanji] = useState(15);
-  const [selectedJlpt, setSelectedJlpt] = useState("n5");
+  const [selectedJlpt, setSelectedJlpt] = useState<JlptLevel>("N5");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [joinDisplayName, setJoinDisplayName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCreateGame() {
+    if (!displayName.trim()) {
+      setError("Please enter your display name");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/game/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jlptLevel: selectedJlpt,
+          timePerPromptSeconds: timePerKanji,
+          isPrivate,
+          maxRounds: 10,
+          hostDisplayName: displayName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create room");
+
+      // Store identity in sessionStorage for use in game page
+      sessionStorage.setItem("participantId", data.hostParticipantId);
+      sessionStorage.setItem("sessionId", data.sessionId);
+
+      router.push(`/game?session=${data.sessionId}&participant=${data.hostParticipantId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleJoinGame() {
+    if (!joinDisplayName.trim()) {
+      setError("Please enter your display name");
+      return;
+    }
+    if (!roomCode.trim()) {
+      setError("Please enter the room code");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/game/rooms/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomCode: roomCode.trim().toUpperCase(),
+          displayName: joinDisplayName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to join room");
+
+      // We need sessionId — fetch it via the room code lookup
+      const sessionRes = await fetch(`/api/game/rooms/${roomCode.trim().toUpperCase()}`);
+      const sessionData = await sessionRes.json();
+
+      sessionStorage.setItem("participantId", data.participantId);
+      sessionStorage.setItem("sessionId", sessionData.id);
+
+      router.push(`/game?session=${sessionData.id}&participant=${data.participantId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <main className="flex-grow pt-32 pb-16 px-8 max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-      {/* Left Side: Conceptual Anchor (Asymmetry) */}
+      {/* Left Side: Conceptual Anchor */}
       <div className="lg:col-span-5 hidden lg:flex flex-col justify-center h-full space-y-8 sticky top-32">
         <h1 className="font-[family-name:var(--font-headline)] text-[3.5rem] font-bold leading-none text-[var(--color-primary)] tracking-tight">
           遊
@@ -28,8 +109,6 @@ export default function GameSetupPage() {
             existing session to commence practice.
           </p>
         </div>
-
-        {/* Aesthetic Graphic Element */}
         <div className="mt-12 border-t border-[var(--color-outline-variant)] pt-4 flex gap-4 opacity-50">
           <div className="w-8 h-8 bg-[var(--color-surface-container-highest)]"></div>
           <div className="w-8 h-8 bg-[var(--color-surface-container-high)]"></div>
@@ -41,29 +120,27 @@ export default function GameSetupPage() {
       <div className="lg:col-span-7 bg-[var(--color-surface-container-low)] p-8 md:p-12">
         {/* Tab Navigation */}
         <div className="flex mb-12 border-b border-[var(--color-outline-variant)]">
-          <button
-            onClick={() => setActiveTab("create")}
-            className={cn(
-              "font-[family-name:var(--font-label)] text-xs uppercase tracking-widest pb-3 px-6 -mb-[1px] transition-none",
-              activeTab === "create"
-                ? "text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]"
-                : "text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-container)]",
-            )}
-          >
-            Create Game
-          </button>
-          <button
-            onClick={() => setActiveTab("join")}
-            className={cn(
-              "font-[family-name:var(--font-label)] text-xs uppercase tracking-widest pb-3 px-6 -mb-[1px] transition-none",
-              activeTab === "join"
-                ? "text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]"
-                : "text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-container)]",
-            )}
-          >
-            Join Game
-          </button>
+          {(["create", "join"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => { setActiveTab(tab); setError(null); }}
+              className={cn(
+                "font-[family-name:var(--font-label)] text-xs uppercase tracking-widest pb-3 px-6 -mb-[1px] transition-none",
+                activeTab === tab
+                  ? "text-[var(--color-primary)] border-b-2 border-[var(--color-primary)]"
+                  : "text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-container)]",
+              )}
+            >
+              {tab === "create" ? "Create Game" : "Join Game"}
+            </button>
+          ))}
         </div>
+
+        {error && (
+          <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm">
+            {error}
+          </div>
+        )}
 
         {activeTab === "create" && (
           <div className="space-y-12">
@@ -74,6 +151,8 @@ export default function GameSetupPage() {
               <Input
                 type="text"
                 placeholder="Enter your display name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
                 className="font-[family-name:var(--font-body)] text-base text-[var(--color-primary)] placeholder:text-[var(--color-outline)]"
               />
             </div>
@@ -83,7 +162,7 @@ export default function GameSetupPage() {
                 JLPT Level
               </label>
               <div className="grid grid-cols-5 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)]">
-                {["n5", "n4", "n3", "n2", "n1"].map((level) => (
+                {(["N5", "N4", "N3", "N2", "N1"] as JlptLevel[]).map((level) => (
                   <label
                     key={level}
                     className="cursor-pointer border-r border-[var(--color-outline-variant)] py-3 text-center transition-none last:border-r-0 hover:bg-[var(--color-surface-container)]"
@@ -93,11 +172,11 @@ export default function GameSetupPage() {
                       name="jlpt"
                       value={level}
                       checked={selectedJlpt === level}
-                      onChange={(e) => setSelectedJlpt(e.target.value)}
+                      onChange={(e) => setSelectedJlpt(e.target.value as JlptLevel)}
                       className="sr-only peer"
                     />
                     <span className="font-[family-name:var(--font-body)] text-sm uppercase text-[var(--color-secondary)] peer-checked:font-bold peer-checked:text-[var(--color-primary)]">
-                      {level}
+                      {level.toLowerCase()}
                     </span>
                   </label>
                 ))}
@@ -129,7 +208,12 @@ export default function GameSetupPage() {
             </div>
 
             <div className="flex items-center border-b border-[var(--color-outline-variant)] py-4">
-              <Checkbox id="private-game" className="mr-4" />
+              <Checkbox
+                id="private-game"
+                className="mr-4"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+              />
               <label
                 htmlFor="private-game"
                 className="cursor-pointer select-none font-[family-name:var(--font-body)] text-sm text-[var(--color-primary)]"
@@ -139,17 +223,19 @@ export default function GameSetupPage() {
             </div>
 
             <div className="pt-8">
-              <Link href="/game" className="block">
-                <Button
-                  variant="primary"
-                  className="w-full justify-center gap-2 py-4 font-[family-name:var(--font-label)] text-sm uppercase tracking-widest"
-                >
-                  Start game
+              <Button
+                variant="primary"
+                className="w-full justify-center gap-2 py-4 font-[family-name:var(--font-label)] text-sm uppercase tracking-widest"
+                onClick={handleCreateGame}
+                disabled={loading}
+              >
+                {loading ? "Creating..." : "Start game"}
+                {!loading && (
                   <span className="material-symbols-outlined" style={{ fontSize: "1.25rem" }}>
                     arrow_forward
                   </span>
-                </Button>
-              </Link>
+                )}
+              </Button>
             </div>
           </div>
         )}
@@ -158,32 +244,48 @@ export default function GameSetupPage() {
           <div className="space-y-12">
             <div className="flex flex-col space-y-2">
               <label className="font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
+                Your Name
+              </label>
+              <Input
+                type="text"
+                placeholder="Enter your display name"
+                value={joinDisplayName}
+                onChange={(e) => setJoinDisplayName(e.target.value)}
+                className="font-[family-name:var(--font-body)] text-base text-[var(--color-primary)] placeholder:text-[var(--color-outline)]"
+              />
+            </div>
+
+            <div className="flex flex-col space-y-2">
+              <label className="font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
                 Room Code
               </label>
               <Input
                 type="text"
-                placeholder="Enter 6-digit code"
+                placeholder="Enter 6-character code"
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 className="font-[family-name:var(--font-headline)] text-2xl tracking-widest text-[var(--color-primary)] placeholder:text-[var(--color-outline)] text-center uppercase"
                 maxLength={6}
               />
             </div>
 
             <div className="pt-8">
-              <Link href="/game" className="block">
-                <Button
-                  variant="primary"
-                  className="w-full justify-center gap-2 py-4 font-[family-name:var(--font-label)] text-sm uppercase tracking-widest"
-                >
-                  Join game
+              <Button
+                variant="primary"
+                className="w-full justify-center gap-2 py-4 font-[family-name:var(--font-label)] text-sm uppercase tracking-widest"
+                onClick={handleJoinGame}
+                disabled={loading}
+              >
+                {loading ? "Joining..." : "Join game"}
+                {!loading && (
                   <span className="material-symbols-outlined" style={{ fontSize: "1.25rem" }}>
                     login
                   </span>
-                </Button>
-              </Link>
+                )}
+              </Button>
             </div>
           </div>
         )}
-
       </div>
     </main>
   );

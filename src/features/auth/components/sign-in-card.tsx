@@ -46,27 +46,30 @@ export function SignInCard({ providers }: { providers: AuthProviderOption[] }) {
           </div>
 
           <div>
-            <div className="mb-2 flex items-baseline justify-between">
-              <label
-                htmlFor="password"
-                className="block font-[family-name:var(--font-label)] text-xs uppercase tracking-wider text-[var(--color-primary)]"
-              >
-                Password
-              </label>
+            <label
+              htmlFor="password"
+              className="mb-2 block font-[family-name:var(--font-label)] text-xs uppercase tracking-wider text-[var(--color-primary)]"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                className="border-0 border-b-2 border-[var(--color-primary)] bg-transparent px-0 py-2 pr-10 text-[var(--color-primary)] placeholder:text-[var(--color-secondary)] focus-visible:ring-0"
+              />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="font-[family-name:var(--font-body)] text-xs text-[var(--color-primary)] underline transition-none hover:text-[var(--color-secondary)]"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-0 top-1/2 -translate-y-1/2 text-[var(--color-primary)] transition-none hover:text-[var(--color-secondary)]"
               >
-                {showPassword ? "Hide" : "Show"}
+                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+                  {showPassword ? "visibility_off" : "visibility"}
+                </span>
               </button>
             </div>
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              className="border-0 border-b-2 border-[var(--color-primary)] bg-transparent px-0 py-2 text-[var(--color-primary)] placeholder:text-[var(--color-secondary)] focus-visible:ring-0"
-            />
           </div>
 
           <div className="mt-6 flex items-center justify-between">

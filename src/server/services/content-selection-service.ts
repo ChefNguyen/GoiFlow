@@ -1,0 +1,62 @@
+import { JlptLevel, PromptType } from "@prisma/client";
+import {
+  getRandomKanjiByLevel,
+  countKanjiByLevel,
+} from "@/server/repositories/content-repository";
+import { createGameRound } from "@/server/repositories/game-round-repository";
+
+export type RoundContentInput = {
+  gameSessionId: string;
+  roundNumber: number;
+  jlptLevel: JlptLevel;
+  promptType?: PromptType;
+};
+
+/**
+ * Selects a kanji entry from the DB and creates a GameRound for it.
+ * Uses KANJI_TO_READING as the default prompt type for Sprint 1.
+ */
+export async function selectAndCreateNextRound(input: RoundContentInput) {
+  const promptType = input.promptType ?? PromptType.KANJI_TO_READING;
+
+  const count = await countKanjiByLevel(input.jlptLevel);
+  if (count === 0) {
+    throw new Error(
+      `No kanji content found for JLPT level ${input.jlptLevel}. Run the seed script first.`
+    );
+  }
+
+  // Pick one random kanji from the level pool
+  const [kanji] = await getRandomKanjiByLevel(input.jlptLevel, 1);
+  if (!kanji) {
+    throw new Error("Failed to pick kanji content for round");
+  }
+
+  const promptText = kanji.character;
+
+  return createGameRound({
+    gameSessionId: input.gameSessionId,
+    roundNumber: input.roundNumber,
+    promptType,
+    promptText,
+    kanjiEntryId: kanji.id,
+  });
+}
+
+/**
+ * Normalize a user's raw answer for consistent comparison.
+ * Converts to lowercase, trims whitespace, converts romaji/hiragana for comparison.
+ */
+export function normalizeAnswer(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+/**
+ * Check whether a normalized answer matches any accepted answer for a round.
+ */
+export function checkAnswer(
+  normalizedAnswer: string,
+  acceptedNormalizedValues: string[]
+): boolean {
+  return acceptedNormalizedValues.some((v) => v === normalizedAnswer);
+}

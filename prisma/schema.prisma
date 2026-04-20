@@ -12,17 +12,59 @@ enum OrganizationRole {
   MEMBER
 }
 
+enum JlptLevel {
+  N5
+  N4
+  N3
+  N2
+  N1
+}
+
+enum ContentSourceName {
+  INTERNAL_SEED
+}
+
+enum PromptType {
+  KANJI_TO_READING
+  WORD_TO_READING
+  READING_TO_MEANING
+}
+
+enum GameMode {
+  KANJI
+}
+
+enum GameSessionStatus {
+  WAITING
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+enum RoundStatus {
+  PENDING
+  ACTIVE
+  RESOLVED
+  SKIPPED
+}
+
+enum ParticipantRole {
+  HOST
+  PLAYER
+}
+
 model User {
-  id            String       @id @default(cuid())
-  name          String?
-  email         String?      @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  memberships   Membership[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id               String            @id @default(cuid())
+  name             String?
+  email            String?           @unique
+  emailVerified    DateTime?
+  image            String?
+  accounts         Account[]
+  sessions         Session[]
+  memberships      Membership[]
+  gameParticipants GameParticipant[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model Organization {
@@ -75,4 +117,178 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model KanjiEntry {
+  id               String           @id @default(cuid())
+  character        String           @unique
+  jlptLevel        JlptLevel
+  strokes          Int?
+  radicals         String[]
+  meanings         String[]
+  meaningsVi       String[]
+  onyomi           String[]
+  kunyomi          String[]
+  amHanViet        String[]
+  normalizedSearch String
+  difficultyWeight Int              @default(1)
+  isCommon         Boolean          @default(false)
+  sourceName       ContentSourceName
+  sourceRecordId   String
+  importVersion    String
+  normalizedAt     DateTime
+  acceptedAnswers  AcceptedAnswer[]
+  gameRounds       GameRound[]      @relation("GameRoundKanjiEntry")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([sourceName, sourceRecordId])
+  @@index([jlptLevel])
+  @@index([normalizedSearch])
+}
+
+model VocabularyEntry {
+  id                String           @id @default(cuid())
+  term              String
+  reading           String
+  jlptLevel         JlptLevel
+  partOfSpeech      String?
+  meanings          String[]
+  meaningsVi        String[]
+  amHanViet         String[]
+  exampleSentence   String?
+  exampleSentenceVi String?
+  difficultyWeight  Int              @default(1)
+  isCommon          Boolean          @default(false)
+  lessonGroup       String?
+  normalizedSearch  String
+  sourceName        ContentSourceName
+  sourceRecordId    String
+  importVersion     String
+  normalizedAt      DateTime
+  acceptedAnswers   AcceptedAnswer[]
+  gameRounds        GameRound[]      @relation("GameRoundVocabularyEntry")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([sourceName, sourceRecordId])
+  @@index([jlptLevel])
+  @@index([term, reading])
+  @@index([normalizedSearch])
+}
+
+model AcceptedAnswer {
+  id                String           @id @default(cuid())
+  promptType        PromptType
+  normalizedValue   String
+  displayValue      String
+  kanjiEntryId      String?
+  vocabularyEntryId String?
+  kanjiEntry        KanjiEntry?      @relation(fields: [kanjiEntryId], references: [id], onDelete: Cascade)
+  vocabularyEntry   VocabularyEntry? @relation(fields: [vocabularyEntryId], references: [id], onDelete: Cascade)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([promptType, normalizedValue])
+  @@index([kanjiEntryId])
+  @@index([vocabularyEntryId])
+}
+
+model GameSession {
+  id                   String             @id @default(cuid())
+  roomCode             String             @unique
+  gameMode             GameMode           @default(KANJI)
+  status               GameSessionStatus  @default(WAITING)
+  hostParticipantId    String?
+  jlptLevel            JlptLevel
+  timePerPromptSeconds Int
+  isPrivate            Boolean            @default(false)
+  maxRounds            Int                @default(10)
+  currentRoundNumber   Int                @default(0)
+  participants         GameParticipant[]
+  rounds               GameRound[]
+  results              GameResult[]
+  startedAt            DateTime?
+  finishedAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([status])
+}
+
+model GameParticipant {
+  id           String            @id @default(cuid())
+  gameSessionId String
+  userId       String?
+  displayName  String
+  role         ParticipantRole   @default(PLAYER)
+  joinedAt     DateTime          @default(now())
+  gameSession  GameSession       @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  user         User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  submissions  GameSubmission[]
+  results      GameResult[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([gameSessionId])
+  @@index([userId])
+  @@unique([gameSessionId, userId])
+}
+
+model GameRound {
+  id                String             @id @default(cuid())
+  gameSessionId     String
+  roundNumber       Int
+  status            RoundStatus        @default(PENDING)
+  promptType        PromptType
+  kanjiEntryId      String?
+  vocabularyEntryId String?
+  promptText        String
+  startedAt         DateTime?
+  resolvedAt        DateTime?
+  gameSession       GameSession        @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  kanjiEntry        KanjiEntry?        @relation("GameRoundKanjiEntry", fields: [kanjiEntryId], references: [id], onDelete: SetNull)
+  vocabularyEntry   VocabularyEntry?   @relation("GameRoundVocabularyEntry", fields: [vocabularyEntryId], references: [id], onDelete: SetNull)
+  submissions       GameSubmission[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([gameSessionId, roundNumber])
+  @@index([gameSessionId, status])
+  @@index([kanjiEntryId])
+  @@index([vocabularyEntryId])
+}
+
+model GameSubmission {
+  id               String          @id @default(cuid())
+  gameRoundId      String
+  participantId    String
+  rawAnswer        String
+  normalizedAnswer String
+  isCorrect        Boolean?
+  scoreAwarded     Int             @default(0)
+  submittedAt      DateTime        @default(now())
+  gameRound        GameRound       @relation(fields: [gameRoundId], references: [id], onDelete: Cascade)
+  participant      GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([participantId])
+}
+
+model GameResult {
+  id                String          @id @default(cuid())
+  gameSessionId     String
+  participantId     String
+  rank              Int?
+  totalScore        Int             @default(0)
+  correctCount      Int             @default(0)
+  averageResponseMs Int?
+  gameSession       GameSession     @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  participant       GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([gameSessionId, participantId])
+  @@index([participantId])
 }

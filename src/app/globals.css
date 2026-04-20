@@ -173,3 +173,76 @@ input[type="checkbox"]:checked {
   -moz-osx-font-smoothing: grayscale;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+
+.scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.scrollbar-subtle:hover {
+  scrollbar-color: color-mix(in srgb, var(--color-outline) 48%, transparent) transparent;
+}
+
+.scrollbar-subtle::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-subtle::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-subtle::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: transparent;
+}
+
+.scrollbar-subtle:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--color-outline) 48%, transparent);
+}
+
+.scrollbar-subtle::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-outline) 72%);
+}
+
+.scrollbar-subtle-strong {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.scrollbar-subtle-strong:hover {
+  scrollbar-color: color-mix(in srgb, var(--color-outline) 42%, transparent) transparent;
+}
+
+.scrollbar-subtle-strong::-webkit-scrollbar {
+  width: 10px;
+}
+
+.scrollbar-subtle-strong::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-subtle-strong::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: transparent;
+}
+
+.scrollbar-subtle-strong:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--color-outline) 42%, transparent);
+}
+
+.scrollbar-subtle-strong::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline) 76%);
+}
+
+.scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
+.scrollbar-gutter-stable-both {
+  scrollbar-gutter: stable both-edges;
+}
