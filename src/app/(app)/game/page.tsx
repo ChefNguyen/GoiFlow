@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, type MouseEvent } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,9 @@ type RoundState = {
 type LeaderboardEntry = {
   participantId: string;
   displayName: string;
-  score: number;
+  totalScore: number;
+  correctCount: number;
+  rank: number;
   active: boolean;
 };
 
@@ -34,6 +36,19 @@ type HistoryItem = {
   };
 };
 
+type SessionResponse = {
+  roomCode?: string;
+  maxRounds?: number;
+  participants?: Array<{ id: string; displayName: string }>;
+  standings?: Array<{
+    participantId: string;
+    displayName: string;
+    totalScore: number;
+    correctCount: number;
+    rank: number;
+  }>;
+};
+
 export default function ActiveGamePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -42,15 +57,56 @@ export default function ActiveGamePage() {
   const participantId = searchParams.get("participant");
 
   const [answer, setAnswer] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [round, setRound] = useState<RoundState | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [currentParticipantName, setCurrentParticipantName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [maxRounds, setMaxRounds] = useState(10);
   const [submitResult, setSubmitResult] = useState<{ isCorrect: boolean; scoreAwarded: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const hydrateSession = useCallback(async () => {
+    if (!sessionId || !participantId) return;
+
+    const response = await fetch(`/api/game/sessions/${sessionId}`);
+    const data = (await response.json()) as SessionResponse;
+
+    if (!response.ok) {
+      throw new Error("Failed to load session");
+    }
+
+    if (data.roomCode) setRoomCode(data.roomCode);
+    if (data.maxRounds) setMaxRounds(data.maxRounds);
+
+    const participants = Array.isArray(data.participants) ? data.participants : [];
+    const standings = Array.isArray(data.standings) ? data.standings : [];
+
+    const currentParticipant = participants.find((participant) => participant.id === participantId);
+    setCurrentParticipantName(currentParticipant?.displayName ?? "");
+
+    if (standings.length > 0) {
+      setLeaderboard(
+        standings.map((entry) => ({
+          ...entry,
+          active: entry.participantId === participantId,
+        })),
+      );
+      return;
+    }
+
+    setLeaderboard(
+      participants.map((participant, index) => ({
+        participantId: participant.id,
+        displayName: participant.displayName,
+        totalScore: 0,
+        correctCount: 0,
+        rank: index + 1,
+        active: participant.id === participantId,
+      })),
+    );
+  }, [participantId, sessionId]);
 
   // Redirect if no session/participant
   useEffect(() => {
@@ -59,17 +115,10 @@ export default function ActiveGamePage() {
     }
   }, [sessionId, participantId, router]);
 
-  // Load session info (room code, maxRounds)
+  // Load session info (room code, maxRounds, standings)
   useEffect(() => {
-    if (!sessionId) return;
-    fetch(`/api/game/sessions/${sessionId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.roomCode) setRoomCode(data.roomCode);
-        if (data.maxRounds) setMaxRounds(data.maxRounds);
-      })
-      .catch(console.error);
-  }, [sessionId]);
+    void hydrateSession().catch(console.error);
+  }, [hydrateSession]);
 
   // Load or create first round
   const fetchingRound = useRef(false);
@@ -85,7 +134,6 @@ export default function ActiveGamePage() {
       
       if (getRes.ok && !getData.activeRound && getData.roundId) {
         setRound(getData);
-        setIsSubmitted(false);
         setAnswer("");
         setSubmitResult(null);
         return;
@@ -108,7 +156,6 @@ export default function ActiveGamePage() {
       }
 
       setRound(data);
-      setIsSubmitted(false);
       setAnswer("");
       setSubmitResult(null);
     } catch (err) {
@@ -120,7 +167,9 @@ export default function ActiveGamePage() {
   }, [sessionId, participantId, router]);
 
   useEffect(() => {
-    loadOrCreateRound();
+    queueMicrotask(() => {
+      void loadOrCreateRound();
+    });
   }, [loadOrCreateRound]);
 
   async function handleSubmit() {
@@ -136,11 +185,11 @@ export default function ActiveGamePage() {
       if (!res.ok) throw new Error(data.error ?? "Submit failed");
 
       setHistory((prev) => [
-        { 
-          promptText: round.promptText, 
-          rawAnswer: answer, 
+        {
+          promptText: round.promptText,
+          rawAnswer: answer,
           isCorrect: data.isCorrect,
-          details: data.details
+          details: data.details,
         },
         ...prev.slice(0, 19),
       ]);
@@ -151,8 +200,72 @@ export default function ActiveGamePage() {
       } else {
         setSubmitResult({ isCorrect: data.isCorrect, scoreAwarded: data.scoreAwarded });
       }
+      await hydrateSession();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submit failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleFinish(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    if (!sessionId || !participantId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
+      router.push(`/results?session=${sessionId}&participant=${participantId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to finish session");
+      setLoading(false);
+    }
+  }
+
+  async function handleSkip() {
+    if (!sessionId || !participantId || !round) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/game/sessions/${sessionId}/rounds`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "skip" }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to skip round");
+      }
+
+      if (data.skippedRoundDetails) {
+        setHistory((prev) => [
+          {
+            promptText: data.skippedRoundDetails.promptText,
+            rawAnswer: "Skipped",
+            isCorrect: false,
+            details: data.skippedRoundDetails.details,
+          },
+          ...prev.slice(0, 19),
+        ]);
+      }
+
+      if (data.status === "FINISHED") {
+        await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
+        router.push(`/results?session=${sessionId}&participant=${participantId}`);
+        return;
+      }
+
+      setRound(data);
+      setAnswer("");
+      setSubmitResult(null);
+      await hydrateSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to skip round");
     } finally {
       setLoading(false);
     }
@@ -167,36 +280,58 @@ export default function ActiveGamePage() {
       {/* Left Sidebar: Word history */}
       <aside className="hidden w-72 shrink-0 border-r border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] lg:flex lg:flex-col">
         <div className="border-b border-[var(--color-outline-variant)] p-6">
-          <h2 className="mt-1 text-lg font-bold text-[var(--color-primary)]">Word history</h2>
+          <h2 className="mb-1 font-[family-name:var(--font-label)] text-[0.75rem] font-bold uppercase tracking-[0.02em] text-[var(--color-secondary)]">
+            Session Data
+          </h2>
+          <h3 className="font-[family-name:var(--font-headline)] text-lg font-bold text-[var(--color-primary)]">
+            Word History
+          </h3>
         </div>
         <div className="flex flex-1 flex-col overflow-y-auto">
           {history.length === 0 && (
-            <p className="p-4 text-sm text-[var(--color-secondary)]">No history yet</p>
+            <p className="border-b border-[var(--color-outline-variant)] p-4 text-sm text-[var(--color-secondary)]">
+              No history yet.
+            </p>
           )}
-          {history.map((item, i) => (
-            <div
-              key={i}
-              className="border-b border-[var(--color-outline-variant)] p-4 transition-none hover:bg-[var(--color-surface-container)]"
-            >
-              <div className="mb-1 flex items-baseline justify-between gap-4">
-                <span className="text-2xl font-bold text-[var(--color-primary)]">{item.promptText}</span>
-                <span className={`text-xs font-medium uppercase tracking-[0.15em] ${item.isCorrect ? "text-green-600" : "text-red-500"}`}>
-                  {item.isCorrect ? "✓" : "✗"}
-                </span>
-              </div>
-              <div className="text-sm text-[var(--color-secondary)] mb-2">
-                Your answer: <span className="font-medium text-[var(--color-primary)]">{item.rawAnswer}</span>
-              </div>
-              {item.details && (
-                <div className="text-xs text-[var(--color-secondary)] space-y-1 bg-[var(--color-surface-container-lowest)] p-2">
-                  <p><strong>Nghĩa:</strong> {item.details.meaningsVi.join(", ")}</p>
-                  <p><strong>Hán Việt:</strong> {item.details.amHanViet.join(", ")}</p>
-                  <p><strong>Onyomi:</strong> {item.details.onyomi.join(", ")}</p>
-                  <p><strong>Kunyomi:</strong> {item.details.kunyomi.join(", ")}</p>
+          {history.map((item, index) => {
+            const secondaryLabel = item.details?.amHanViet[0] ?? item.rawAnswer;
+            const tertiaryLabel = item.details?.meaningsVi[0] ?? item.rawAnswer;
+
+            return (
+              <div
+                key={`${item.promptText}-${index}`}
+                className="grid grid-cols-[1fr_auto] items-start gap-4 border-b border-[var(--color-outline-variant)] p-4 transition-none hover:bg-[var(--color-surface-container)]"
+              >
+                <div className="flex min-w-0 items-start justify-between gap-4">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="mb-2 font-[family-name:var(--font-headline)] text-5xl font-bold leading-none text-[var(--color-primary)]">
+                      {item.promptText}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-primary)]">
+                      {secondaryLabel}
+                    </span>
+                  </div>
+                  {item.isCorrect && (
+                    <div className="min-w-0 text-right">
+                      <span className="block text-xs text-[var(--color-secondary)]">{item.rawAnswer}</span>
+                      <span className="mt-0.5 block text-xs text-[var(--color-secondary)]">{tertiaryLabel}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+                <div className="flex h-8 w-8 items-center justify-center border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)]">
+                  {item.isCorrect ? (
+                    <span className="material-symbols-outlined text-[18px] text-[var(--color-primary)]">
+                      check
+                    </span>
+                  ) : (
+                    <span className="font-[family-name:var(--font-label)] text-sm font-bold text-[var(--color-primary)]">
+                      X
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </aside>
 
@@ -219,11 +354,6 @@ export default function ActiveGamePage() {
                 {round?.promptText ?? "..."}
               </h1>
             )}
-            {!loading && round && submitResult && !submitResult.isCorrect && (
-              <div className="absolute top-1/4 right-0 rotate-12 bg-red-100 text-red-700 px-4 py-2 font-bold uppercase tracking-widest text-sm border-2 border-red-700 rounded-lg opacity-80 pointer-events-none">
-                Incorrect
-              </div>
-            )}
           </div>
 
           <div className="w-full max-w-md pb-8">
@@ -237,7 +367,7 @@ export default function ActiveGamePage() {
               id="kanji-input"
               autoFocus
               autoComplete="off"
-              placeholder="Hiragana or Romaji"
+              placeholder="Hiragana only"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
@@ -251,6 +381,14 @@ export default function ActiveGamePage() {
             >
               {loading ? "Submitting..." : "Submit"}
             </Button>
+            <Button
+              variant="secondary"
+              className="mt-3 w-full py-3"
+              onClick={handleSkip}
+              disabled={loading || !round}
+            >
+              Skip
+            </Button>
           </div>
         </div>
       </main>
@@ -259,42 +397,62 @@ export default function ActiveGamePage() {
       <aside className="hidden w-72 shrink-0 border-l border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] lg:flex lg:flex-col">
         <div className="flex items-start justify-between border-b border-[var(--color-outline-variant)] p-6">
           <div>
-            <h2 className="mt-1 text-lg font-bold text-[var(--color-primary)]">
-              ROOM: {roomCode || "..."}
+            <h2 className="mb-1 font-[family-name:var(--font-label)] text-[0.75rem] font-bold uppercase tracking-[0.02em] text-[var(--color-secondary)]">
+              Study_Session
             </h2>
+            <h3 className="font-[family-name:var(--font-headline)] text-lg font-bold text-[var(--color-primary)]">
+              ROOM_CODE: {roomCode || "..."}
+            </h3>
           </div>
           <button className="p-1 transition-none hover:bg-[var(--color-surface-container)]" aria-label="Show room QR code">
             <span className="material-symbols-outlined text-[var(--color-primary)]">qr_code</span>
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col">
-          {leaderboard.length === 0 && (
-            <p className="p-4 text-sm text-[var(--color-secondary)]">Leaderboard updates after each round</p>
-          )}
-          {leaderboard.map((entry) => (
-            <div
-              key={entry.participantId}
-              className={entry.active
-                ? "flex items-center justify-between border-b border-[var(--color-outline-variant)] bg-[var(--color-surface-container-highest)] p-4"
-                : "flex items-center justify-between border-b border-[var(--color-outline-variant)] p-4"}
-            >
-              <span className={entry.active ? "font-medium text-[var(--color-primary)]" : "font-medium text-[var(--color-secondary)]"}>
-                {entry.displayName}
-              </span>
-              <span className={entry.active ? "font-bold text-[var(--color-primary)]" : "font-bold text-[var(--color-secondary)]"}>
-                {entry.score}
-              </span>
+        <div className="flex flex-1 flex-col overflow-y-auto">
+          {leaderboard.length === 0 ? (
+            <div className="border-b border-[var(--color-outline-variant)] p-4">
+              <div className="flex flex-col">
+                <span className="font-[family-name:var(--font-headline)] text-lg font-bold text-[var(--color-primary)]">
+                  {currentParticipantName || "You"}
+                </span>
+                <span className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)]">
+                  Rank #1
+                </span>
+              </div>
             </div>
-          ))}
+          ) : (
+            leaderboard.map((entry) => (
+              <div
+                key={entry.participantId}
+                className={entry.active
+                  ? "flex items-center justify-between border-b border-[var(--color-outline-variant)] bg-[var(--color-surface-container-highest)] p-4"
+                  : "flex items-center justify-between border-b border-[var(--color-outline-variant)] p-4 transition-none hover:bg-[var(--color-surface-container)]"}
+              >
+                <div className="flex flex-col">
+                  <span className="font-[family-name:var(--font-headline)] text-lg font-bold text-[var(--color-primary)]">
+                    {entry.displayName}
+                  </span>
+                  <span className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)]">
+                    Rank #{entry.rank}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-lg font-bold text-[var(--color-primary)]">
+                    {entry.totalScore}
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-tight text-[var(--color-secondary)]">
+                    Points
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
-        <div className="grid gap-2 border-t border-[var(--color-outline-variant)] p-4">
-          <Link href={`/results?session=${sessionId}&participant=${participantId}`} className="block">
-            <Button variant="primary" className="w-full py-3">View results</Button>
-          </Link>
-          <Link href="/game/setup" className="block">
-            <Button variant="secondary" className="w-full py-3">Leave</Button>
+        <div className="border-t border-[var(--color-outline-variant)] p-4">
+          <Link href="/results" className="block" onClick={handleFinish}>
+            <Button variant="secondary" className="w-full py-3 uppercase tracking-[0.02em] text-xs">FINISH</Button>
           </Link>
         </div>
       </aside>

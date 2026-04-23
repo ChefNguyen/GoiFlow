@@ -58,7 +58,7 @@ export async function getSessionState(sessionId: string) {
   return session;
 }
 
-export async function startSession(sessionId: string, requestingUserId?: string) {
+export async function startSession(sessionId: string) {
   const session = await findGameSessionById(sessionId);
   if (!session) throw new Error("Session not found");
   if (session.status !== GameSessionStatus.WAITING) {

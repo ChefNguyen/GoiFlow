@@ -4,90 +4,99 @@ import { prisma } from "../src/server/db/client";
 const n5Kanji = [
   {
     character: "一",
-    meanings: ["One"],
     meaningsVi: ["Một", "Nhất"],
+    amHanViet: ["Nhất"],
     onyomi: ["いち", "いつ"],
     kunyomi: ["ひと", "ひと.つ"],
-    acceptedReadings: ["ichi", "itsu", "hito", "hitotsu", "いち", "いつ", "ひと", "ひとつ"],
+    acceptedReadings: ["いち", "いつ", "ひと", "ひとつ"],
   },
   {
     character: "二",
-    meanings: ["Two"],
     meaningsVi: ["Hai", "Nhị"],
+    amHanViet: ["Nhị"],
     onyomi: ["に", "じ"],
     kunyomi: ["ふた", "ふた.つ", "ふたた.び"],
-    acceptedReadings: ["ni", "ji", "futa", "futatsu", "に", "じ", "ふた", "ふたつ"],
+    acceptedReadings: ["に", "じ", "ふた", "ふたつ"],
   },
   {
     character: "三",
-    meanings: ["Three"],
     meaningsVi: ["Ba", "Tam"],
+    amHanViet: ["Tam"],
     onyomi: ["さん", "ぞう"],
     kunyomi: ["み", "み.つ", "みっ.つ"],
-    acceptedReadings: ["san", "zou", "mi", "mitsu", "mittsu", "さん", "ぞう", "み", "みつ", "みっつ"],
+    acceptedReadings: ["さん", "ぞう", "み", "みつ", "みっつ"],
   },
   {
     character: "日",
-    meanings: ["Day", "Sun", "Japan"],
     meaningsVi: ["Ngày", "Mặt trời", "Nhật"],
+    amHanViet: ["Nhật"],
     onyomi: ["にち", "じつ"],
     kunyomi: ["ひ", "び", "か"],
-    acceptedReadings: ["nichi", "jitsu", "hi", "bi", "ka", "にち", "じつ", "ひ", "び", "か"],
+    acceptedReadings: ["にち", "じつ", "ひ", "び", "か"],
   },
   {
     character: "月",
-    meanings: ["Month", "Moon"],
     meaningsVi: ["Tháng", "Mặt trăng", "Nguyệt"],
+    amHanViet: ["Nguyệt"],
     onyomi: ["げつ", "がつ"],
     kunyomi: ["つき"],
-    acceptedReadings: ["getsu", "gatsu", "tsuki", "げつ", "がつ", "つき"],
+    acceptedReadings: ["げつ", "がつ", "つき"],
   },
   {
     character: "水",
-    meanings: ["Water"],
     meaningsVi: ["Nước", "Thủy"],
+    amHanViet: ["Thủy"],
     onyomi: ["すい"],
     kunyomi: ["みず"],
-    acceptedReadings: ["sui", "mizu", "すい", "みず"],
+    acceptedReadings: ["すい", "みず"],
   },
   {
     character: "火",
-    meanings: ["Fire"],
     meaningsVi: ["Lửa", "Hỏa"],
+    amHanViet: ["Hỏa"],
     onyomi: ["か"],
     kunyomi: ["ひ", "び", "ほ"],
-    acceptedReadings: ["ka", "hi", "bi", "ho", "か", "ひ", "び", "ほ"],
+    acceptedReadings: ["か", "ひ", "び", "ほ"],
   },
 ];
 
 const n4Kanji = [
   {
     character: "会",
-    meanings: ["Meeting", "Meet", "Party", "Association"],
     meaningsVi: ["Gặp", "Hội"],
+    amHanViet: ["Hội"],
     onyomi: ["かい", "え"],
     kunyomi: ["あ.う", "あ.わせる", "あつ.まる"],
-    acceptedReadings: ["kai", "e", "au", "awaseru", "atsumaru", "かい", "え", "あう", "あわせる", "あつまる"],
+    acceptedReadings: ["かい", "え", "あう", "あわせる", "あつまる"],
   },
   {
     character: "同",
-    meanings: ["Same", "Agree", "Equal"],
     meaningsVi: ["Giống nhau", "Đồng"],
+    amHanViet: ["Đồng"],
     onyomi: ["どう"],
     kunyomi: ["おな.じ"],
-    acceptedReadings: ["dou", "onaji", "どう", "おなじ"],
+    acceptedReadings: ["どう", "おなじ"],
   },
   {
     character: "事",
-    meanings: ["Matter", "Thing", "Fact", "Business", "Reason"],
     meaningsVi: ["Việc", "Sự"],
+    amHanViet: ["Sự", "Sự việc"],
     onyomi: ["じ", "ず"],
     kunyomi: ["こと"],
-    acceptedReadings: ["ji", "zu", "koto", "じ", "ず", "こと"],
+    acceptedReadings: ["じ", "ず", "こと"],
   },
 ];
 
-async function seedKanji(kanjiList: any[], level: JlptLevel) {
+type SeedKanjiItem = {
+  character: string;
+  meaningsVi: string[];
+  amHanViet: string[];
+  onyomi: string[];
+  kunyomi: string[];
+  acceptedReadings: string[];
+};
+
+async function seedKanji(kanjiList: SeedKanjiItem[], level: JlptLevel) {
   for (const item of kanjiList) {
     const sourceRecordId = `seed_${level}_${item.character}`;
     
@@ -99,8 +108,8 @@ async function seedKanji(kanjiList: any[], level: JlptLevel) {
         },
       },
       update: {
-        meanings: item.meanings,
         meaningsVi: item.meaningsVi,
+        amHanViet: item.amHanViet,
         onyomi: item.onyomi,
         kunyomi: item.kunyomi,
       },
@@ -112,12 +121,11 @@ async function seedKanji(kanjiList: any[], level: JlptLevel) {
         importVersion: "1.0",
         normalizedSearch: item.character,
         normalizedAt: new Date(),
-        meanings: item.meanings,
         meaningsVi: item.meaningsVi,
+        amHanViet: item.amHanViet,
         onyomi: item.onyomi,
         kunyomi: item.kunyomi,
         radicals: [],
-        amHanViet: [],
       },
     });
 

@@ -1,4 +1,4 @@
-import { GameSessionStatus, GameMode, JlptLevel, ParticipantRole, RoundStatus, PromptType } from "@prisma/client";
+import { GameSessionStatus, GameMode, JlptLevel, ParticipantRole } from "@prisma/client";
 
 export interface CreateGameSessionInput {
   hostParticipantId?: string;

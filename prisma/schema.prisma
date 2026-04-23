@@ -125,7 +125,6 @@ model KanjiEntry {
   jlptLevel        JlptLevel
   strokes          Int?
   radicals         String[]
-  meanings         String[]
   meaningsVi       String[]
   onyomi           String[]
   kunyomi          String[]
@@ -153,7 +152,6 @@ model VocabularyEntry {
   reading           String
   jlptLevel         JlptLevel
   partOfSpeech      String?
-  meanings          String[]
   meaningsVi        String[]
   amHanViet         String[]
   exampleSentence   String?

@@ -1,5 +1,5 @@
 import { prisma } from "@/server/db/client";
-import { JlptLevel } from "@prisma/client";
+import { JlptLevel, Prisma } from "@prisma/client";
 
 export async function getKanjiByLevel(
   jlptLevel: JlptLevel,
@@ -23,18 +23,49 @@ export async function getKanjiById(id: string) {
 
 export async function getRandomKanjiByLevel(
   jlptLevel: JlptLevel,
-  count: number
+  count: number,
+  options: { excludeIds?: string[] } = {}
 ) {
-  // Fetch a larger pool then sample — Prisma does not support ORDER BY RANDOM directly
-  const total = await prisma.kanjiEntry.count({ where: { jlptLevel } });
-  const skip = Math.max(0, Math.floor(Math.random() * (total - count)));
+  const where: Prisma.KanjiEntryWhereInput = {
+    jlptLevel,
+    ...(options.excludeIds && options.excludeIds.length > 0
+      ? { id: { notIn: options.excludeIds } }
+      : {}),
+  };
+
+  const availableCount = await prisma.kanjiEntry.count({ where });
+
+  if (availableCount === 0 || count <= 0) {
+    return [];
+  }
+
+  const take = Math.min(count, availableCount);
+  const maxSkip = Math.max(availableCount - take, 0);
+  const skip = maxSkip === 0 ? 0 : Math.floor(Math.random() * (maxSkip + 1));
 
   return prisma.kanjiEntry.findMany({
-    where: { jlptLevel },
-    take: count,
-    skip,
+    where,
     include: { acceptedAnswers: true },
+    orderBy: { id: "asc" },
+    skip,
+    take,
   });
+}
+
+export async function listKanjiIdsUsedInSession(gameSessionId: string) {
+  const rounds = await prisma.gameRound.findMany({
+    where: {
+      gameSessionId,
+      kanjiEntryId: { not: null },
+    },
+    select: {
+      kanjiEntryId: true,
+    },
+  });
+
+  return rounds
+    .map((round) => round.kanjiEntryId)
+    .filter((kanjiEntryId): kanjiEntryId is string => Boolean(kanjiEntryId));
 }
 
 export async function getVocabularyByLevel(

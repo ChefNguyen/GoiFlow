@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionState } from "@/server/services/game-session-service";
+import { getLiveStandings } from "@/server/services/game-results-service";
 
 export async function GET(
   _request: NextRequest,
@@ -7,7 +8,10 @@ export async function GET(
 ) {
   try {
     const { sessionId } = await params;
-    const session = await getSessionState(sessionId);
+    const [session, standings] = await Promise.all([
+      getSessionState(sessionId),
+      getLiveStandings(sessionId),
+    ]);
 
     return NextResponse.json({
       id: session.id,
@@ -23,6 +27,7 @@ export async function GET(
         displayName: p.displayName,
         role: p.role,
       })),
+      standings,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { JlptLevel } from "@prisma/client";
-import { selectAndCreateNextRound, normalizeAnswer, checkAnswer } from "@/server/services/content-selection-service";
-import { activateRound, resolveRound, submitAnswer, scoreSubmission, findActiveRound } from "@/server/repositories/game-round-repository";
+import { selectAndCreateNextRound } from "@/server/services/content-selection-service";
+import { activateRound, findActiveRound, resolveRound } from "@/server/repositories/game-round-repository";
 import { findGameSessionById } from "@/server/repositories/game-session-repository";
 import { prisma } from "@/server/db/client";
 
-// POST /api/game/sessions/[sessionId]/rounds — create next round
+// POST /api/game/sessions/[sessionId]/rounds — create or skip to next round
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -17,10 +17,50 @@ export async function POST(
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
+    const body = await request.json().catch(() => null);
+    const action = body && typeof body === "object" ? body.action : undefined;
+
+    let skippedRoundDetails:
+      | {
+          promptText: string;
+          details?: {
+            meaningsVi: string[];
+            amHanViet: string[];
+            onyomi: string[];
+            kunyomi: string[];
+          };
+        }
+      | undefined;
+
+    if (action === "skip") {
+      const activeRound = await findActiveRound(sessionId);
+      if (!activeRound) {
+        return NextResponse.json({ error: "No active round for this session" }, { status: 409 });
+      }
+
+      skippedRoundDetails = {
+        promptText: activeRound.promptText,
+        details: activeRound.kanjiEntry
+          ? {
+              meaningsVi: activeRound.kanjiEntry.meaningsVi,
+              amHanViet: activeRound.kanjiEntry.amHanViet,
+              onyomi: activeRound.kanjiEntry.onyomi,
+              kunyomi: activeRound.kanjiEntry.kunyomi,
+            }
+          : undefined,
+      };
+
+      await resolveRound(activeRound.id);
+    }
+
     const nextRoundNumber = session.currentRoundNumber + 1;
     if (nextRoundNumber > session.maxRounds) {
       return NextResponse.json(
-        { status: "FINISHED", message: "All rounds have been played" },
+        {
+          status: "FINISHED",
+          message: "All rounds have been played",
+          skippedRoundDetails,
+        },
         { status: 200 }
       );
     }
@@ -33,10 +73,9 @@ export async function POST(
 
     const activated = await activateRound(round.id);
 
-    // Update current round tracker
     await prisma.gameSession.update({
       where: { id: sessionId },
-      data: { currentRoundNumber: nextRoundNumber }
+      data: { currentRoundNumber: nextRoundNumber },
     });
 
     return NextResponse.json({
@@ -45,6 +84,7 @@ export async function POST(
       promptText: activated.promptText,
       promptType: activated.promptType,
       startedAt: activated.startedAt,
+      skippedRoundDetails,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";

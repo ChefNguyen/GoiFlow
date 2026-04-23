@@ -2,6 +2,7 @@ import { JlptLevel, PromptType } from "@prisma/client";
 import {
   getRandomKanjiByLevel,
   countKanjiByLevel,
+  listKanjiIdsUsedInSession,
 } from "@/server/repositories/content-repository";
 import { createGameRound } from "@/server/repositories/game-round-repository";
 
@@ -26,8 +27,16 @@ export async function selectAndCreateNextRound(input: RoundContentInput) {
     );
   }
 
-  // Pick one random kanji from the level pool
-  const [kanji] = await getRandomKanjiByLevel(input.jlptLevel, 1);
+  const usedKanjiIds = await listKanjiIdsUsedInSession(input.gameSessionId);
+
+  let [kanji] = await getRandomKanjiByLevel(input.jlptLevel, 1, {
+    excludeIds: usedKanjiIds,
+  });
+
+  if (!kanji) {
+    [kanji] = await getRandomKanjiByLevel(input.jlptLevel, 1);
+  }
+
   if (!kanji) {
     throw new Error("Failed to pick kanji content for round");
   }
@@ -43,20 +52,26 @@ export async function selectAndCreateNextRound(input: RoundContentInput) {
   });
 }
 
-/**
- * Normalize a user's raw answer for consistent comparison.
- * Converts to lowercase, trims whitespace, converts romaji/hiragana for comparison.
- */
+export function isHiraganaOnly(value: string): boolean {
+  const normalized = value.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  return /^[ぁ-ゖーゝゞ・\s]+$/u.test(normalized);
+}
+
 export function normalizeAnswer(raw: string): string {
-  return raw.trim().toLowerCase();
+  return raw.trim();
+}
+
+export function checkAnswer(
+  normalizedAnswer: string,
+  acceptedNormalizedValues: string[]
+): boolean {
+  return acceptedNormalizedValues.some((value) => value === normalizedAnswer);
 }
 
 /**
  * Check whether a normalized answer matches any accepted answer for a round.
  */
-export function checkAnswer(
-  normalizedAnswer: string,
-  acceptedNormalizedValues: string[]
-): boolean {
-  return acceptedNormalizedValues.some((v) => v === normalizedAnswer);
-}

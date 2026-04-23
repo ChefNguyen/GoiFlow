@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { normalizeAnswer, checkAnswer } from "@/server/services/content-selection-service";
+import {
+  normalizeAnswer,
+  checkAnswer,
+  isHiraganaOnly,
+} from "@/server/services/content-selection-service";
 import {
   findActiveRound,
   submitAnswer,
   scoreSubmission,
   resolveRound,
 } from "@/server/repositories/game-round-repository";
-import { prisma } from "@/server/db/client";
 
 // POST /api/game/sessions/[sessionId]/submit
 export async function POST(
@@ -34,6 +37,7 @@ export async function POST(
     }
 
     const normalized = normalizeAnswer(String(rawAnswer));
+    const usesHiraganaOnly = isHiraganaOnly(normalized);
 
     // Collect accepted answers from kanjiEntry or vocabularyEntry
     const acceptedValues = [
@@ -43,10 +47,8 @@ export async function POST(
       .filter((a) => a.promptType === activeRound.promptType)
       .map((a) => a.normalizedValue);
 
-    const isCorrect = checkAnswer(normalized, acceptedValues);
-    const scoreAwarded = isCorrect
-      ? Math.max(100 - activeRound.submissions.length * 10, 10) // basic scoring: first correct scores higher
-      : 0;
+    const isCorrect = usesHiraganaOnly && checkAnswer(normalized, acceptedValues);
+    const scoreAwarded = isCorrect ? 1 : 0;
 
     const submission = await submitAnswer({
       gameRoundId: activeRound.id,
@@ -65,7 +67,7 @@ export async function POST(
       await resolveRound(activeRound.id);
     }
 
-    const details = activeRound.kanjiEntry ? {
+    const details = shouldAdvance && activeRound.kanjiEntry ? {
       meaningsVi: activeRound.kanjiEntry.meaningsVi,
       amHanViet: activeRound.kanjiEntry.amHanViet,
       onyomi: activeRound.kanjiEntry.onyomi,
@@ -78,6 +80,7 @@ export async function POST(
       scoreAwarded,
       normalizedAnswer: normalized,
       shouldAdvance,
+      validationMessage: usesHiraganaOnly ? null : "Use hiragana only",
       details,
     });
   } catch (error) {

@@ -1,8 +1,5 @@
 import { prisma } from "@/server/db/client";
-import {
-  listRoundsForSession,
-  scoreSubmission,
-} from "@/server/repositories/game-round-repository";
+import { listRoundsForSession } from "@/server/repositories/game-round-repository";
 import { finishGameSession } from "@/server/repositories/game-session-repository";
 
 export type ParticipantResult = {
@@ -14,12 +11,9 @@ export type ParticipantResult = {
   averageResponseMs?: number;
 };
 
-export async function computeAndPersistResults(
-  gameSessionId: string
-): Promise<ParticipantResult[]> {
+async function buildParticipantResults(gameSessionId: string): Promise<ParticipantResult[]> {
   const rounds = await listRoundsForSession(gameSessionId);
 
-  // Aggregate scores per participant
   const scoreMap = new Map<
     string,
     { totalScore: number; correctCount: number; displayName: string }
@@ -41,52 +35,59 @@ export async function computeAndPersistResults(
     }
   }
 
-  // Fetch participant display names
   const participantIds = Array.from(scoreMap.keys());
   const participants = await prisma.gameParticipant.findMany({
     where: { id: { in: participantIds } },
     select: { id: true, displayName: true },
   });
-  for (const p of participants) {
-    const entry = scoreMap.get(p.id);
-    if (entry) entry.displayName = p.displayName;
+
+  for (const participant of participants) {
+    const entry = scoreMap.get(participant.id);
+    if (entry) {
+      entry.displayName = participant.displayName;
+    }
   }
 
-  // Sort by totalScore descending and assign ranks
-  const sorted = Array.from(scoreMap.entries()).sort(
-    (a, b) => b[1].totalScore - a[1].totalScore
-  );
-
-  const results: ParticipantResult[] = [];
-
-  for (let i = 0; i < sorted.length; i++) {
-    const [participantId, data] = sorted[i];
-    const rank = i + 1;
-
-    await prisma.gameResult.upsert({
-      where: {
-        gameSessionId_participantId: { gameSessionId, participantId },
-      },
-      create: {
-        gameSessionId,
-        participantId,
-        rank,
-        totalScore: data.totalScore,
-        correctCount: data.correctCount,
-      },
-      update: {
-        rank,
-        totalScore: data.totalScore,
-        correctCount: data.correctCount,
-      },
-    });
-
-    results.push({
+  return Array.from(scoreMap.entries())
+    .sort((a, b) => b[1].totalScore - a[1].totalScore)
+    .map(([participantId, data], index) => ({
       participantId,
       displayName: data.displayName,
       totalScore: data.totalScore,
       correctCount: data.correctCount,
-      rank,
+      rank: index + 1,
+    }));
+}
+
+export async function getLiveStandings(gameSessionId: string): Promise<ParticipantResult[]> {
+  return buildParticipantResults(gameSessionId);
+}
+
+export async function computeAndPersistResults(
+  gameSessionId: string
+): Promise<ParticipantResult[]> {
+  const results = await buildParticipantResults(gameSessionId);
+
+  for (const result of results) {
+    await prisma.gameResult.upsert({
+      where: {
+        gameSessionId_participantId: {
+          gameSessionId,
+          participantId: result.participantId,
+        },
+      },
+      create: {
+        gameSessionId,
+        participantId: result.participantId,
+        rank: result.rank,
+        totalScore: result.totalScore,
+        correctCount: result.correctCount,
+      },
+      update: {
+        rank: result.rank,
+        totalScore: result.totalScore,
+        correctCount: result.correctCount,
+      },
     });
   }
 
