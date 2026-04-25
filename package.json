@@ -14,6 +14,8 @@
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
     "db:validate": "node scripts/prisma-validate.mjs",
+    "vocab:import": "tsx scripts/import-vocab.ts",
+    "vocab:import:dry": "tsx scripts/import-vocab.ts --dry-run",
     "preflight": "node scripts/preflight.mjs",
     "verify": "npm run lint && npm run typecheck && npm run db:validate && npm run test:unit && npm run test:integration && npm run build",
     "verify:e2e": "npm run verify && npm run test:e2e"

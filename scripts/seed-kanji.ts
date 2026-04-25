@@ -134,25 +134,25 @@ async function seedKanji(kanjiList: SeedKanjiItem[], level: JlptLevel) {
     // Create accepted answers for KANJI_TO_READING
     for (const reading of item.acceptedReadings) {
       const normalizedValue = reading.toLowerCase().trim();
-      
-      const existingAnswer = await prisma.acceptedAnswer.findFirst({
-        where: {
-          kanjiEntryId: entry.id,
-          promptType: PromptType.KANJI_TO_READING,
-          normalizedValue: normalizedValue,
-        }
-      });
 
-      if (!existingAnswer) {
-        await prisma.acceptedAnswer.create({
-          data: {
+      await prisma.acceptedAnswer.upsert({
+        where: {
+          kanjiEntryId_promptType_normalizedValue: {
             kanjiEntryId: entry.id,
             promptType: PromptType.KANJI_TO_READING,
-            displayValue: reading,
-            normalizedValue: normalizedValue,
-          }
-        });
-      }
+            normalizedValue,
+          },
+        },
+        update: {
+          displayValue: reading,
+        },
+        create: {
+          kanjiEntryId: entry.id,
+          promptType: PromptType.KANJI_TO_READING,
+          displayValue: reading,
+          normalizedValue,
+        },
+      });
     }
   }
 }

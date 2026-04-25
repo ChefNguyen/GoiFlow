@@ -58,6 +58,7 @@ export default function ActiveGamePage() {
 
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"submit" | "skip" | null>(null);
   const [round, setRound] = useState<RoundState | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -175,6 +176,7 @@ export default function ActiveGamePage() {
   async function handleSubmit() {
     if (!answer.trim() || !sessionId || !participantId || !round) return;
     setLoading(true);
+    setPendingAction("submit");
     try {
       const res = await fetch(`/api/game/sessions/${sessionId}/submit`, {
         method: "POST",
@@ -205,6 +207,7 @@ export default function ActiveGamePage() {
       setError(err instanceof Error ? err.message : "Submit failed");
     } finally {
       setLoading(false);
+      setPendingAction(null);
     }
   }
 
@@ -228,6 +231,7 @@ export default function ActiveGamePage() {
     if (!sessionId || !participantId || !round) return;
 
     setLoading(true);
+    setPendingAction("skip");
     setError(null);
 
     try {
@@ -268,6 +272,7 @@ export default function ActiveGamePage() {
       setError(err instanceof Error ? err.message : "Failed to skip round");
     } finally {
       setLoading(false);
+      setPendingAction(null);
     }
   }
 
@@ -295,40 +300,48 @@ export default function ActiveGamePage() {
           )}
           {history.map((item, index) => {
             const secondaryLabel = item.details?.amHanViet[0] ?? item.rawAnswer;
+            const readingLabel = item.details
+              ? [...item.details.kunyomi, ...item.details.onyomi].filter(Boolean).join(" / ")
+              : item.rawAnswer;
             const tertiaryLabel = item.details?.meaningsVi[0] ?? item.rawAnswer;
 
             return (
               <div
                 key={`${item.promptText}-${index}`}
-                className="grid grid-cols-[1fr_auto] items-start gap-4 border-b border-[var(--color-outline-variant)] p-4 transition-none hover:bg-[var(--color-surface-container)]"
+                className="flex items-start justify-between gap-4 border-b border-[var(--color-outline-variant)] p-4 transition-none hover:bg-[var(--color-surface-container)]"
               >
-                <div className="flex min-w-0 items-start justify-between gap-4">
-                  <div className="flex min-w-0 flex-col">
-                    <span className="mb-2 font-[family-name:var(--font-headline)] text-5xl font-bold leading-none text-[var(--color-primary)]">
+                <div className="flex min-w-0 flex-col">
+                  <div className="mb-1 flex items-end gap-3">
+                    <span className="font-[family-name:var(--font-headline)] text-5xl font-bold leading-none text-[var(--color-primary)]">
                       {item.promptText}
                     </span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-primary)]">
-                      {secondaryLabel}
-                    </span>
-                  </div>
-                  {item.isCorrect && (
-                    <div className="min-w-0 text-right">
-                      <span className="block text-xs text-[var(--color-secondary)]">{item.rawAnswer}</span>
-                      <span className="mt-0.5 block text-xs text-[var(--color-secondary)]">{tertiaryLabel}</span>
+                    <div
+                      className={item.isCorrect
+                        ? "flex h-6 w-6 shrink-0 items-center justify-center bg-[var(--color-primary)]"
+                        : "flex h-6 w-6 shrink-0 items-center justify-center border-2 border-[var(--color-primary)] bg-transparent"}
+                      aria-label={item.isCorrect ? "Correct answer" : "Incorrect or skipped answer"}
+                    >
+                      {item.isCorrect ? (
+                        <span className="material-symbols-outlined text-[14px] font-bold text-[var(--color-on-primary)]">
+                          check
+                        </span>
+                      ) : (
+                        <span className="material-symbols-outlined text-[14px] font-bold text-[var(--color-primary)]">
+                          close
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-primary)]">
+                    {secondaryLabel}
+                  </span>
                 </div>
-                <div className="flex h-8 w-8 items-center justify-center border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)]">
-                  {item.isCorrect ? (
-                    <span className="material-symbols-outlined text-[18px] text-[var(--color-primary)]">
-                      check
-                    </span>
-                  ) : (
-                    <span className="font-[family-name:var(--font-label)] text-sm font-bold text-[var(--color-primary)]">
-                      X
-                    </span>
-                  )}
-                </div>
+                {item.details && (
+                  <div className="min-w-0 shrink-0 text-right">
+                    <span className="mt-1 block text-xs text-[var(--color-secondary)]">{readingLabel}</span>
+                    <span className="mt-0.5 block text-xs text-[var(--color-secondary)]">{tertiaryLabel}</span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -379,7 +392,7 @@ export default function ActiveGamePage() {
               onClick={handleSubmit}
               disabled={loading || !answer.trim()}
             >
-              {loading ? "Submitting..." : "Submit"}
+              {pendingAction === "submit" ? "Submitting..." : "Submit"}
             </Button>
             <Button
               variant="secondary"

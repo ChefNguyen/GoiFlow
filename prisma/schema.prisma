@@ -22,6 +22,8 @@ enum JlptLevel {
 
 enum ContentSourceName {
   INTERNAL_SEED
+  JISHO_API
+  KANJI_DICT_VN
 }
 
 enum PromptType {
@@ -187,6 +189,8 @@ model AcceptedAnswer {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
+  @@unique([kanjiEntryId, promptType, normalizedValue])
+  @@unique([vocabularyEntryId, promptType, normalizedValue])
   @@index([promptType, normalizedValue])
   @@index([kanjiEntryId])
   @@index([vocabularyEntryId])
