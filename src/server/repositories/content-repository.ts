@@ -81,6 +81,53 @@ export async function getVocabularyByLevel(
   });
 }
 
+export async function getRandomVocabularyByLevel(
+  jlptLevel: JlptLevel,
+  count: number,
+  options: { excludeIds?: string[] } = {}
+) {
+  const where: Prisma.VocabularyEntryWhereInput = {
+    jlptLevel,
+    ...(options.excludeIds && options.excludeIds.length > 0
+      ? { id: { notIn: options.excludeIds } }
+      : {}),
+  };
+
+  const availableCount = await prisma.vocabularyEntry.count({ where });
+
+  if (availableCount === 0 || count <= 0) {
+    return [];
+  }
+
+  const take = Math.min(count, availableCount);
+  const maxSkip = Math.max(availableCount - take, 0);
+  const skip = maxSkip === 0 ? 0 : Math.floor(Math.random() * (maxSkip + 1));
+
+  return prisma.vocabularyEntry.findMany({
+    where,
+    include: { acceptedAnswers: true },
+    orderBy: { id: "asc" },
+    skip,
+    take,
+  });
+}
+
+export async function listVocabularyIdsUsedInSession(gameSessionId: string) {
+  const rounds = await prisma.gameRound.findMany({
+    where: {
+      gameSessionId,
+      vocabularyEntryId: { not: null },
+    },
+    select: {
+      vocabularyEntryId: true,
+    },
+  });
+
+  return rounds
+    .map((round) => round.vocabularyEntryId)
+    .filter((vocabularyEntryId): vocabularyEntryId is string => Boolean(vocabularyEntryId));
+}
+
 export async function countKanjiByLevel(jlptLevel: JlptLevel) {
   return prisma.kanjiEntry.count({ where: { jlptLevel } });
 }

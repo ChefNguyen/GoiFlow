@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { ContentSourceName, JlptLevel, PromptType } from "@prisma/client";
+import JishoAPI, { JishoResult } from "unofficial-jisho-api";
 import { prisma } from "../src/server/db/client";
-import { readFile } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
 
 type RawVocabRecord = {
   sourceRecordId?: string;
@@ -19,6 +20,8 @@ type RawVocabRecord = {
   acceptedAnswers?: string[];
 };
 
+type IngestMode = "file" | "jisho";
+
 type CliOptions = {
   input: string;
   source: ContentSourceName;
@@ -28,6 +31,12 @@ type CliOptions = {
   offset: number;
   batchSize: number;
   dryRun: boolean;
+  ingest: IngestMode;
+  delayMs: number;
+  maxRetries: number;
+  retryBaseMs: number;
+  progressFile?: string;
+  resume: boolean;
 };
 
 type PreparedVocabRecord = {
@@ -44,6 +53,13 @@ type PreparedVocabRecord = {
   isCommon: boolean;
   normalizedSearch: string;
   acceptedAnswers: Array<{ displayValue: string; normalizedValue: string }>;
+};
+
+type ImportProgress = {
+  input: string;
+  ingest: IngestMode;
+  lastCompletedIndex: number;
+  updatedAt: string;
 };
 
 function getArgValue(flag: string): string | undefined {
@@ -68,6 +84,12 @@ function parseSource(raw: string | undefined): ContentSourceName {
     return raw as ContentSourceName;
   }
   throw new Error(`Invalid --source value: ${raw}`);
+}
+
+function parseIngestMode(raw: string | undefined): IngestMode {
+  if (!raw) return "file";
+  if (raw === "file" || raw === "jisho") return raw;
+  throw new Error(`Invalid --ingest value: ${raw}`);
 }
 
 function normalizeReading(value: string): string {
@@ -171,10 +193,18 @@ function parseOptions(): CliOptions {
   const limitRaw = getArgValue("--limit");
   const offsetRaw = getArgValue("--offset");
   const batchRaw = getArgValue("--batch-size");
+  const ingest = parseIngestMode(getArgValue("--ingest"));
+  const delayRaw = getArgValue("--delay-ms");
+  const retriesRaw = getArgValue("--max-retries");
+  const retryBaseRaw = getArgValue("--retry-base-ms");
+  const progressFile = getArgValue("--progress-file");
 
   const limit = limitRaw ? Number(limitRaw) : undefined;
   const offset = offsetRaw ? Number(offsetRaw) : 0;
   const batchSize = batchRaw ? Number(batchRaw) : 100;
+  const delayMs = delayRaw ? Number(delayRaw) : 700;
+  const maxRetries = retriesRaw ? Number(retriesRaw) : 4;
+  const retryBaseMs = retryBaseRaw ? Number(retryBaseRaw) : 500;
 
   if (limit !== undefined && (!Number.isFinite(limit) || limit <= 0)) {
     throw new Error("--limit must be a positive number");
@@ -184,6 +214,15 @@ function parseOptions(): CliOptions {
   }
   if (!Number.isFinite(batchSize) || batchSize <= 0) {
     throw new Error("--batch-size must be a positive number");
+  }
+  if (!Number.isFinite(delayMs) || delayMs < 0) {
+    throw new Error("--delay-ms must be a non-negative number");
+  }
+  if (!Number.isFinite(maxRetries) || maxRetries < 0) {
+    throw new Error("--max-retries must be a non-negative number");
+  }
+  if (!Number.isFinite(retryBaseMs) || retryBaseMs < 0) {
+    throw new Error("--retry-base-ms must be a non-negative number");
   }
 
   return {
@@ -195,6 +234,154 @@ function parseOptions(): CliOptions {
     offset,
     batchSize,
     dryRun: hasFlag("--dry-run"),
+    ingest,
+    delayMs,
+    maxRetries,
+    retryBaseMs,
+    progressFile: progressFile ?? (ingest === "jisho" ? "scripts/data/.import-progress.json" : undefined),
+    resume: hasFlag("--resume"),
+  };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function toJlptLevel(raw: string | undefined): JlptLevel | undefined {
+  if (!raw) return undefined;
+  const match = raw.toUpperCase().match(/N[1-5]/);
+  if (!match) return undefined;
+  return match[0] as JlptLevel;
+}
+
+function parseJlptFromTags(tags: string[] | undefined): JlptLevel | undefined {
+  if (!tags || tags.length === 0) return undefined;
+  for (const tag of tags) {
+    const parsed = toJlptLevel(tag);
+    if (parsed) return parsed;
+  }
+  return undefined;
+}
+
+function pickBestResult(data: JishoResult[], term: string, reading?: string): JishoResult | undefined {
+  if (data.length === 0) return undefined;
+
+  const exactWord = data.find((item) => item.japanese.some((jp) => jp.word === term));
+  if (exactWord) return exactWord;
+
+  if (reading) {
+    const exactReading = data.find((item) => item.japanese.some((jp) => jp.reading === reading));
+    if (exactReading) return exactReading;
+  }
+
+  return data[0];
+}
+
+function getBestJapanese(result: JishoResult, fallbackTerm: string, fallbackReading: string) {
+  const exactWord = result.japanese.find((jp) => jp.word === fallbackTerm);
+  const best = exactWord ?? result.japanese[0];
+  return {
+    term: best?.word ?? fallbackTerm,
+    reading: best?.reading ?? fallbackReading,
+  };
+}
+
+function getPartOfSpeech(result: JishoResult): string | undefined {
+  const values = uniqueValues(result.senses.flatMap((sense) => sense.parts_of_speech ?? []));
+  return values.length > 0 ? values.join(", ") : undefined;
+}
+
+async function withRetry<T>(
+  action: () => Promise<T>,
+  options: CliOptions,
+  label: string,
+): Promise<T> {
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await action();
+    } catch (error) {
+      attempt += 1;
+      if (attempt > options.maxRetries) {
+        throw error;
+      }
+
+      const waitMs = Math.min(options.retryBaseMs * 2 ** (attempt - 1), 8000);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.warn(`[import-vocab] Retry ${attempt}/${options.maxRetries} for ${label}: ${message}`);
+      await sleep(waitMs);
+    }
+  }
+}
+
+async function loadProgress(path: string): Promise<ImportProgress | undefined> {
+  try {
+    await access(path);
+  } catch {
+    return undefined;
+  }
+
+  const content = await readFile(path, "utf8");
+  const parsed = JSON.parse(content) as ImportProgress;
+  if (typeof parsed?.lastCompletedIndex !== "number") return undefined;
+  return parsed;
+}
+
+async function saveProgress(path: string, progress: ImportProgress) {
+  await writeFile(path, JSON.stringify(progress, null, 2), "utf8");
+}
+
+async function enrichFromJisho(
+  input: RawVocabRecord,
+  index: number,
+  options: CliOptions,
+  jisho: JishoAPI,
+): Promise<RawVocabRecord> {
+  const query = input.term?.trim();
+  if (!query) {
+    throw new Error(`Record #${index} missing term for Jisho ingest`);
+  }
+
+  const search = await withRetry(
+    () => jisho.searchForPhrase(query),
+    options,
+    `searchForPhrase(${query})`,
+  );
+
+  const best = pickBestResult(search.data ?? [], query, input.reading);
+  if (!best) {
+    throw new Error(`No Jisho result for term: ${query}`);
+  }
+
+  const japanese = getBestJapanese(best, input.term, input.reading || input.term);
+  const partOfSpeech = getPartOfSpeech(best);
+  const meaningsEn = uniqueValues(best.senses.flatMap((sense) => sense.english_definitions ?? []));
+
+  let jlptLevel = input.jlptLevel ?? parseJlptFromTags(best.jlpt);
+  if (!jlptLevel && best.jlpt.length === 0) {
+    const scrape = await withRetry(
+      () => jisho.scrapeForPhrase(query),
+      options,
+      `scrapeForPhrase(${query})`,
+    );
+    jlptLevel = parseJlptFromTags(scrape.tags) ?? jlptLevel;
+  }
+
+  const meaningsVi = uniqueValues(input.meaningsVi ?? []);
+  const fallbackMeaningsVi = meaningsEn.slice(0, 3);
+
+  return {
+    ...input,
+    term: japanese.term,
+    reading: japanese.reading,
+    jlptLevel: jlptLevel ?? input.jlptLevel,
+    partOfSpeech: input.partOfSpeech ?? partOfSpeech,
+    meaningsEn,
+    meaningsVi: meaningsVi.length > 0 ? meaningsVi : fallbackMeaningsVi,
+    amHanViet: uniqueValues(input.amHanViet ?? []),
+    isCommon: input.isCommon ?? Boolean(best.is_common),
+    acceptedAnswers: uniqueValues(input.acceptedAnswers ?? [japanese.reading]),
   };
 }
 
@@ -269,30 +456,59 @@ async function persistRecord(record: PreparedVocabRecord, options: CliOptions) {
 async function main() {
   const options = parseOptions();
   const records = await loadInput(options.input);
+  const jisho = options.ingest === "jisho" ? new JishoAPI() : undefined;
 
   const filteredByLevel = options.jlpt
     ? records.filter((record) => record.jlptLevel === options.jlpt)
     : records;
 
-  const sliced = filteredByLevel.slice(options.offset, options.limit ? options.offset + options.limit : undefined);
+  let effectiveOffset = options.offset;
+  if (options.resume && options.progressFile) {
+    const progress = await loadProgress(options.progressFile);
+    if (progress && progress.input === options.input && progress.ingest === options.ingest) {
+      effectiveOffset = Math.max(effectiveOffset, progress.lastCompletedIndex + 1);
+      console.log(`[import-vocab] Resume from offset ${effectiveOffset}`);
+    }
+  }
+
+  const sliced = filteredByLevel.slice(
+    effectiveOffset,
+    options.limit ? effectiveOffset + options.limit : undefined,
+  );
 
   let processed = 0;
   let imported = 0;
   let failed = 0;
+  let jishoRecordCount = 0;
 
   console.log(`[import-vocab] Loaded ${records.length} records`);
   console.log(`[import-vocab] Selected ${sliced.length} records after filters`);
+  console.log(`[import-vocab] Ingest mode: ${options.ingest}`);
   console.log(`[import-vocab] Mode: ${options.dryRun ? "dry-run" : "persist"}`);
 
   for (let start = 0; start < sliced.length; start += options.batchSize) {
     const batch = sliced.slice(start, start + options.batchSize);
 
     for (let index = 0; index < batch.length; index += 1) {
-      const globalIndex = start + index + options.offset;
+      const globalIndex = start + index + effectiveOffset;
       const raw = batch[index];
 
       try {
-        const prepared = prepareRecord(raw, globalIndex);
+        let source = raw;
+        if (options.ingest === "jisho") {
+          if (!jisho) {
+            throw new Error("Jisho ingest is not initialized");
+          }
+
+          if (jishoRecordCount > 0 && options.delayMs > 0) {
+            await sleep(options.delayMs);
+          }
+
+          source = await enrichFromJisho(raw, globalIndex, options, jisho);
+          jishoRecordCount += 1;
+        }
+
+        const prepared = prepareRecord(source, globalIndex);
         processed += 1;
 
         if (!options.dryRun) {
@@ -303,6 +519,15 @@ async function main() {
         failed += 1;
         const message = error instanceof Error ? error.message : "Unknown error";
         console.error(`[import-vocab] Failed at record #${globalIndex}: ${message}`);
+      } finally {
+        if (options.progressFile) {
+          await saveProgress(options.progressFile, {
+            input: options.input,
+            ingest: options.ingest,
+            lastCompletedIndex: globalIndex,
+            updatedAt: new Date().toISOString(),
+          });
+        }
       }
     }
 

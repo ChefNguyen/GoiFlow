@@ -3,6 +3,9 @@ import {
   getRandomKanjiByLevel,
   countKanjiByLevel,
   listKanjiIdsUsedInSession,
+  getRandomVocabularyByLevel,
+  countVocabularyByLevel,
+  listVocabularyIdsUsedInSession,
 } from "@/server/repositories/content-repository";
 import { createGameRound } from "@/server/repositories/game-round-repository";
 
@@ -20,35 +23,59 @@ export type RoundContentInput = {
 export async function selectAndCreateNextRound(input: RoundContentInput) {
   const promptType = input.promptType ?? PromptType.KANJI_TO_READING;
 
-  const count = await countKanjiByLevel(input.jlptLevel);
-  if (count === 0) {
+  const kanjiCount = await countKanjiByLevel(input.jlptLevel);
+
+  if (kanjiCount > 0) {
+    const usedKanjiIds = await listKanjiIdsUsedInSession(input.gameSessionId);
+
+    let [kanji] = await getRandomKanjiByLevel(input.jlptLevel, 1, {
+      excludeIds: usedKanjiIds,
+    });
+
+    if (!kanji) {
+      [kanji] = await getRandomKanjiByLevel(input.jlptLevel, 1);
+    }
+
+    if (!kanji) {
+      throw new Error("Failed to pick kanji content for round");
+    }
+
+    return createGameRound({
+      gameSessionId: input.gameSessionId,
+      roundNumber: input.roundNumber,
+      promptType,
+      promptText: kanji.character,
+      kanjiEntryId: kanji.id,
+    });
+  }
+
+  const vocabularyCount = await countVocabularyByLevel(input.jlptLevel);
+  if (vocabularyCount === 0) {
     throw new Error(
-      `No kanji content found for JLPT level ${input.jlptLevel}. Run the seed script first.`
+      `No content found for JLPT level ${input.jlptLevel}. Run import or seed scripts first.`
     );
   }
 
-  const usedKanjiIds = await listKanjiIdsUsedInSession(input.gameSessionId);
+  const usedVocabularyIds = await listVocabularyIdsUsedInSession(input.gameSessionId);
 
-  let [kanji] = await getRandomKanjiByLevel(input.jlptLevel, 1, {
-    excludeIds: usedKanjiIds,
+  let [vocabulary] = await getRandomVocabularyByLevel(input.jlptLevel, 1, {
+    excludeIds: usedVocabularyIds,
   });
 
-  if (!kanji) {
-    [kanji] = await getRandomKanjiByLevel(input.jlptLevel, 1);
+  if (!vocabulary) {
+    [vocabulary] = await getRandomVocabularyByLevel(input.jlptLevel, 1);
   }
 
-  if (!kanji) {
-    throw new Error("Failed to pick kanji content for round");
+  if (!vocabulary) {
+    throw new Error("Failed to pick vocabulary content for round");
   }
-
-  const promptText = kanji.character;
 
   return createGameRound({
     gameSessionId: input.gameSessionId,
     roundNumber: input.roundNumber,
-    promptType,
-    promptText,
-    kanjiEntryId: kanji.id,
+    promptType: PromptType.WORD_TO_READING,
+    promptText: vocabulary.term,
+    vocabularyEntryId: vocabulary.id,
   });
 }
 

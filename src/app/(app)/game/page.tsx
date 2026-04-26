@@ -65,7 +65,6 @@ export default function ActiveGamePage() {
   const [currentParticipantName, setCurrentParticipantName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [maxRounds, setMaxRounds] = useState(10);
-  const [submitResult, setSubmitResult] = useState<{ isCorrect: boolean; scoreAwarded: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const hydrateSession = useCallback(async () => {
@@ -118,7 +117,9 @@ export default function ActiveGamePage() {
 
   // Load session info (room code, maxRounds, standings)
   useEffect(() => {
-    void hydrateSession().catch(console.error);
+    queueMicrotask(() => {
+      void hydrateSession().catch(console.error);
+    });
   }, [hydrateSession]);
 
   // Load or create first round
@@ -136,7 +137,6 @@ export default function ActiveGamePage() {
       if (getRes.ok && !getData.activeRound && getData.roundId) {
         setRound(getData);
         setAnswer("");
-        setSubmitResult(null);
         return;
       }
 
@@ -158,7 +158,6 @@ export default function ActiveGamePage() {
 
       setRound(data);
       setAnswer("");
-      setSubmitResult(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load round");
     } finally {
@@ -197,10 +196,7 @@ export default function ActiveGamePage() {
       ]);
       setAnswer("");
       if (data.shouldAdvance) {
-        setSubmitResult(null);
         await loadOrCreateRound();
-      } else {
-        setSubmitResult({ isCorrect: data.isCorrect, scoreAwarded: data.scoreAwarded });
       }
       await hydrateSession();
     } catch (err) {
@@ -266,7 +262,6 @@ export default function ActiveGamePage() {
 
       setRound(data);
       setAnswer("");
-      setSubmitResult(null);
       await hydrateSession();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to skip round");

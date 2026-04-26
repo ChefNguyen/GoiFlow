@@ -275,6 +275,7 @@ model GameSubmission {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
+  @@unique([gameRoundId, participantId])
   @@index([participantId])
 }
 

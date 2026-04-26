@@ -1,0 +1,1213 @@
+[
+  {
+    "sourceRecordId": "jisho_n3_batch_1_準備",
+    "term": "準備",
+    "reading": "じゅんび",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "preparation"
+    ],
+    "meaningsEn": [
+      "preparation",
+      "arrangements",
+      "getting ready",
+      "provision",
+      "setup",
+      "reserving"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "じゅんび",
+      "じゅんび"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_2_連絡",
+    "term": "連絡",
+    "reading": "れんらく",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "contacting"
+    ],
+    "meaningsEn": [
+      "contacting",
+      "(making) contact",
+      "getting in touch",
+      "communication",
+      "correspondence",
+      "call",
+      "message",
+      "connection (with a train, bus, etc.)",
+      "joining (a railway line, etc.)",
+      "meeting",
+      "connection (between matters, incidents, etc.)",
+      "relation",
+      "link"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "れんらく",
+      "れんらく"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_3_予定",
+    "term": "予定",
+    "reading": "よてい",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "plans"
+    ],
+    "meaningsEn": [
+      "plans",
+      "arrangement",
+      "schedule",
+      "program",
+      "programme",
+      "expectation",
+      "estimate"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "よてい",
+      "よてい"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_4_確認",
+    "term": "確認",
+    "reading": "かくにん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "confirmation"
+    ],
+    "meaningsEn": [
+      "confirmation",
+      "verification",
+      "validation",
+      "review",
+      "check",
+      "affirmation",
+      "identification"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "かくにん",
+      "かくにん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_5_経験",
+    "term": "経験",
+    "reading": "けいけん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "experience"
+    ],
+    "meaningsEn": [
+      "experience",
+      "Experience"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "けいけん",
+      "けいけん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_6_説明",
+    "term": "説明",
+    "reading": "せつめい",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "explanation"
+    ],
+    "meaningsEn": [
+      "explanation",
+      "exposition",
+      "description",
+      "account",
+      "caption",
+      "legend",
+      "Explanation"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "せつめい",
+      "せつめい"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_7_練習",
+    "term": "練習",
+    "reading": "れんしゅう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "practice"
+    ],
+    "meaningsEn": [
+      "practice",
+      "training",
+      "drill",
+      "(an) exercise",
+      "workout"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "れんしゅう",
+      "れんしゅう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_8_関係",
+    "term": "関係",
+    "reading": "かんけい",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "relation"
+    ],
+    "meaningsEn": [
+      "relation",
+      "relationship",
+      "connection",
+      "participation",
+      "involvement",
+      "concern",
+      "influence",
+      "effect",
+      "sexual relations",
+      "sexual relationship",
+      "related to",
+      "connected to",
+      "Relation"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "かんけい",
+      "かんけい"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_9_必要",
+    "term": "必要",
+    "reading": "ひつよう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Na-adjective (keiyodoshi)",
+    "meaningsVi": [
+      "necessary"
+    ],
+    "meaningsEn": [
+      "necessary",
+      "needed",
+      "essential",
+      "indispensable",
+      "necessity",
+      "need",
+      "requirement"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "ひつよう",
+      "ひつよう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_10_十分",
+    "term": "十分",
+    "reading": "じゅうぶん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Na-adjective (keiyodoshi)",
+    "meaningsVi": [
+      "enough"
+    ],
+    "meaningsEn": [
+      "enough",
+      "sufficient",
+      "plenty",
+      "adequate",
+      "satisfactory",
+      "sufficiently",
+      "fully",
+      "thoroughly",
+      "well",
+      "perfectly",
+      "division into ten"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "じゅうぶん",
+      "じゅうぶん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_11_決定",
+    "term": "決定",
+    "reading": "けってい",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb, Intransitive verb",
+    "meaningsVi": [
+      "decision"
+    ],
+    "meaningsEn": [
+      "decision",
+      "determination"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "けってい",
+      "けってい"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_12_参加",
+    "term": "参加",
+    "reading": "さんか",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "participation"
+    ],
+    "meaningsEn": [
+      "participation",
+      "joining",
+      "entry"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "さんか",
+      "さんか"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_13_協力",
+    "term": "協力",
+    "reading": "きょうりょく",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "cooperation"
+    ],
+    "meaningsEn": [
+      "cooperation",
+      "collaboration",
+      "help",
+      "support"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "きょうりょく",
+      "きょうりょく"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_14_変更",
+    "term": "変更",
+    "reading": "へんこう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "change"
+    ],
+    "meaningsEn": [
+      "change",
+      "modification",
+      "alteration",
+      "revision",
+      "amendment"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "へんこう",
+      "へんこう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_15_利用",
+    "term": "利用",
+    "reading": "りよう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "use"
+    ],
+    "meaningsEn": [
+      "use",
+      "utilization",
+      "utilisation",
+      "application"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "りよう",
+      "りよう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_16_活動",
+    "term": "活動",
+    "reading": "かつどう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "activity (of a person, organization, animal, volcano, etc.)"
+    ],
+    "meaningsEn": [
+      "activity (of a person, organization, animal, volcano, etc.)",
+      "action",
+      "operation",
+      "moving picture"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "かつどう",
+      "かつどう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_17_提案",
+    "term": "提案",
+    "reading": "ていあん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "proposal"
+    ],
+    "meaningsEn": [
+      "proposal",
+      "proposition",
+      "suggestion"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "ていあん",
+      "ていあん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_18_質問",
+    "term": "質問",
+    "reading": "しつもん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb, Intransitive verb, Noun which may take the genitive case particle 'no'",
+    "meaningsVi": [
+      "question"
+    ],
+    "meaningsEn": [
+      "question",
+      "inquiry",
+      "enquiry"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "しつもん",
+      "しつもん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_19_情報",
+    "term": "情報",
+    "reading": "じょうほう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "information"
+    ],
+    "meaningsEn": [
+      "information",
+      "news",
+      "report",
+      "intelligence",
+      "information (data contained in characters, signals, code, etc.)",
+      "informatics (as a subject)",
+      "Information"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "じょうほう",
+      "じょうほう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_20_管理",
+    "term": "管理",
+    "reading": "かんり",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "control"
+    ],
+    "meaningsEn": [
+      "control",
+      "management (e.g. of a business)"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "かんり",
+      "かんり"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_21_計画",
+    "term": "計画",
+    "reading": "けいかく",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "plan"
+    ],
+    "meaningsEn": [
+      "plan",
+      "project",
+      "schedule",
+      "scheme",
+      "program",
+      "programme",
+      "Plan"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "けいかく",
+      "けいかく"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_22_相談",
+    "term": "相談",
+    "reading": "そうだん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "consultation"
+    ],
+    "meaningsEn": [
+      "consultation",
+      "discussion",
+      "discussing",
+      "asking (someone) for advice"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "そうだん",
+      "そうだん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_23_理解",
+    "term": "理解",
+    "reading": "りかい",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "understanding"
+    ],
+    "meaningsEn": [
+      "understanding",
+      "comprehension",
+      "appreciation",
+      "sympathy",
+      "Understanding"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "りかい",
+      "りかい"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_24_努力",
+    "term": "努力",
+    "reading": "どりょく",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "effort"
+    ],
+    "meaningsEn": [
+      "effort",
+      "exertion",
+      "endeavour",
+      "endeavor",
+      "hard work",
+      "striving"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "どりょく",
+      "どりょく"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_25_研究",
+    "term": "研究",
+    "reading": "けんきゅう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "research"
+    ],
+    "meaningsEn": [
+      "research",
+      "study",
+      "investigation",
+      "Research"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "けんきゅう",
+      "けんきゅう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_26_技術",
+    "term": "技術",
+    "reading": "ぎじゅつ",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "technology"
+    ],
+    "meaningsEn": [
+      "technology",
+      "engineering",
+      "technique",
+      "skill",
+      "art",
+      "craft"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "ぎじゅつ",
+      "ぎじゅつ"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_27_発表",
+    "term": "発表",
+    "reading": "はっぴょう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "announcement"
+    ],
+    "meaningsEn": [
+      "announcement",
+      "publication",
+      "presenting",
+      "statement",
+      "communique",
+      "making known",
+      "breaking (news story)",
+      "expressing (one's opinion)",
+      "releasing",
+      "unveiling"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "はっぴょう",
+      "はっぴょう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_28_成長",
+    "term": "成長",
+    "reading": "せいちょう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "growth"
+    ],
+    "meaningsEn": [
+      "growth",
+      "development",
+      "growing up",
+      "becoming an adult",
+      "growth (of a company, the economy, etc.)"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "せいちょう",
+      "せいちょう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_29_成功",
+    "term": "成功",
+    "reading": "せいこう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "success"
+    ],
+    "meaningsEn": [
+      "success",
+      "achievement",
+      "succeeding (in life)",
+      "(worldly) success",
+      "prosperity"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "せいこう",
+      "せいこう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_30_対応",
+    "term": "対応",
+    "reading": "たいおう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "correspondence (to)"
+    ],
+    "meaningsEn": [
+      "correspondence (to)",
+      "equivalence",
+      "suitability",
+      "coordination",
+      "matching",
+      "being appropriate (for)",
+      "dealing with",
+      "coping with",
+      "handling",
+      "response",
+      "reception",
+      "reaction",
+      "compatibility (with technology, software, etc.)",
+      "capability",
+      "support (for)"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "たいおう",
+      "たいおう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_31_環境",
+    "term": "環境",
+    "reading": "かんきょう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "environment"
+    ],
+    "meaningsEn": [
+      "environment",
+      "surroundings",
+      "circumstances"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "かんきょう",
+      "かんきょう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_32_目的",
+    "term": "目的",
+    "reading": "もくてき",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "purpose"
+    ],
+    "meaningsEn": [
+      "purpose",
+      "goal",
+      "aim",
+      "objective",
+      "intention",
+      "motive"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "もくてき",
+      "もくてき"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_33_改善",
+    "term": "改善",
+    "reading": "かいぜん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb, Intransitive verb",
+    "meaningsVi": [
+      "betterment"
+    ],
+    "meaningsEn": [
+      "betterment",
+      "improvement",
+      "kaizen (Japanese business philosophy of continuous improvement)",
+      "Kaizen"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "かいぜん",
+      "かいぜん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_34_内容",
+    "term": "内容",
+    "reading": "ないよう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "contents"
+    ],
+    "meaningsEn": [
+      "contents",
+      "content",
+      "substance",
+      "matter",
+      "detail",
+      "import"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "ないよう",
+      "ないよう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_35_結果",
+    "term": "結果",
+    "reading": "けっか",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "result"
+    ],
+    "meaningsEn": [
+      "result",
+      "consequence",
+      "outcome",
+      "effect",
+      "as a result of ...",
+      "as a consequence of ...",
+      "after ...",
+      "following ...",
+      "bearing fruit",
+      "fruiting",
+      "Corollary"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "けっか",
+      "けっか"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_36_理由",
+    "term": "理由",
+    "reading": "りゆう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "reason"
+    ],
+    "meaningsEn": [
+      "reason",
+      "grounds",
+      "pretext",
+      "excuse",
+      "motive"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "りゆう",
+      "りゆう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_37_方法",
+    "term": "方法",
+    "reading": "ほうほう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "method"
+    ],
+    "meaningsEn": [
+      "method",
+      "way",
+      "manner",
+      "process",
+      "procedure",
+      "means",
+      "measure"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "ほうほう",
+      "ほうほう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_38_条件",
+    "term": "条件",
+    "reading": "じょうけん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "condition"
+    ],
+    "meaningsEn": [
+      "condition",
+      "term",
+      "requirement",
+      "qualification",
+      "prerequisite"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "じょうけん",
+      "じょうけん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_39_影響",
+    "term": "影響",
+    "reading": "えいきょう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Intransitive verb",
+    "meaningsVi": [
+      "influence"
+    ],
+    "meaningsEn": [
+      "influence",
+      "effect",
+      "impact"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "えいきょう",
+      "えいきょう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_40_責任",
+    "term": "責任",
+    "reading": "せきにん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "duty"
+    ],
+    "meaningsEn": [
+      "duty",
+      "responsibility (incl. supervision of staff)",
+      "liability",
+      "onus",
+      "Moral responsibility"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "せきにん",
+      "せきにん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_41_判断",
+    "term": "判断",
+    "reading": "はんだん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "judgment"
+    ],
+    "meaningsEn": [
+      "judgment",
+      "judgement",
+      "decision",
+      "conclusion",
+      "adjudication",
+      "divination",
+      "judgement"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "はんだん",
+      "はんだん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_42_選択",
+    "term": "選択",
+    "reading": "せんたく",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "choice"
+    ],
+    "meaningsEn": [
+      "choice",
+      "selection",
+      "option"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "せんたく",
+      "せんたく"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_43_継続",
+    "term": "継続",
+    "reading": "けいぞく",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb, Intransitive verb",
+    "meaningsVi": [
+      "continuation"
+    ],
+    "meaningsEn": [
+      "continuation",
+      "continuance",
+      "maintenance",
+      "persistence",
+      "going on",
+      "Continuation"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "けいぞく",
+      "けいぞく"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_44_比較",
+    "term": "比較",
+    "reading": "ひかく",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "comparison"
+    ],
+    "meaningsEn": [
+      "comparison"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "ひかく",
+      "ひかく"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_45_基準",
+    "term": "基準",
+    "reading": "きじゅん",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "standard"
+    ],
+    "meaningsEn": [
+      "standard",
+      "criterion",
+      "norm",
+      "benchmark",
+      "measure",
+      "gauge",
+      "basis"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "きじゅん",
+      "きじゅん"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_46_意識",
+    "term": "意識",
+    "reading": "いしき",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb, Intransitive verb",
+    "meaningsVi": [
+      "consciousness"
+    ],
+    "meaningsEn": [
+      "consciousness",
+      "becoming aware (of)",
+      "awareness",
+      "sense",
+      "mano-vijnana (mental consciousness, cognizer of sensory information)",
+      "Consciousness"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "いしき",
+      "いしき"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_47_共有",
+    "term": "共有",
+    "reading": "きょうゆう",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "joint ownership"
+    ],
+    "meaningsEn": [
+      "joint ownership",
+      "co-ownership",
+      "sharing (e.g. a viewpoint)",
+      "sharing (files, devices on a network, posts on social media, etc.)"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "きょうゆう",
+      "きょうゆう"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_48_評価",
+    "term": "評価",
+    "reading": "ひょうか",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "valuation"
+    ],
+    "meaningsEn": [
+      "valuation",
+      "appraisal",
+      "evaluation",
+      "assessment",
+      "estimation",
+      "rating",
+      "judging",
+      "appreciation",
+      "recognition",
+      "acknowledgement",
+      "rating highly",
+      "praising",
+      "Assessment"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "ひょうか",
+      "ひょうか"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_49_整理",
+    "term": "整理",
+    "reading": "せいり",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun, Suru verb, Transitive verb",
+    "meaningsVi": [
+      "sorting"
+    ],
+    "meaningsEn": [
+      "sorting",
+      "arrangement",
+      "organization",
+      "putting in order",
+      "adjustment",
+      "regulation",
+      "liquidation",
+      "settlement",
+      "consolidation",
+      "clearance (e.g. debt)",
+      "paying off",
+      "retrenchment",
+      "curtailment",
+      "cutting down",
+      "disposal"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "せいり",
+      "せいり"
+    ]
+  },
+  {
+    "sourceRecordId": "jisho_n3_batch_50_課題",
+    "term": "課題",
+    "reading": "かだい",
+    "jlptLevel": "N3",
+    "partOfSpeech": "Noun",
+    "meaningsVi": [
+      "subject"
+    ],
+    "meaningsEn": [
+      "subject",
+      "theme",
+      "issue",
+      "matter",
+      "homework",
+      "assignment",
+      "problem (that needs solving)",
+      "task",
+      "challenge",
+      "question",
+      "route (in climbing, bouldering, etc.)",
+      "problem"
+    ],
+    "amHanViet": [],
+    "isCommon": true,
+    "acceptedAnswers": [
+      "かだい",
+      "かだい"
+    ]
+  }
+]

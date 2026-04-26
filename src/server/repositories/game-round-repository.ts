@@ -71,13 +71,24 @@ export async function submitAnswer(input: {
   rawAnswer: string;
   normalizedAnswer: string;
 }) {
-  return prisma.gameSubmission.create({
-    data: {
+  return prisma.gameSubmission.upsert({
+    where: {
+      gameRoundId_participantId: {
+        gameRoundId: input.gameRoundId,
+        participantId: input.participantId,
+      },
+    },
+    update: {
+      rawAnswer: input.rawAnswer,
+      normalizedAnswer: input.normalizedAnswer,
+      isCorrect: null,
+      scoreAwarded: 0,
+    },
+    create: {
       gameRoundId: input.gameRoundId,
       participantId: input.participantId,
       rawAnswer: input.rawAnswer,
       normalizedAnswer: input.normalizedAnswer,
-      // isCorrect is nullable — will be resolved when round resolves
     },
   });
 }
