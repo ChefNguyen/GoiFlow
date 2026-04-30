@@ -38,6 +38,12 @@ GoiFlow is a web-first workflow SaaS. This repository is the production starter,
 - Smoke path stays green in Playwright when the UI surface changes
 - Product, ADR, or runbook docs are updated when the change introduces new decisions
 
+## Key Documentation
+
+- [Agent Rules](./AGENTS.md) - Framework conventions and system guiderails.
+- [Data Pipeline Strategy](./DATA_PIPELINE_STRATEGY.md) - Ingestion, normalization, and AI enrichment logic.
+- [Project Roadmap](./PROJECT_ROADMAP_4_SPRINTS.md) - Sprint goals, progress tracking, and future milestones.
+
 ## Claude Harness
 
 The `.claude/` directory contains the project harness used by Claude Code:
@@ -53,7 +59,7 @@ Use the harness as a guide, not as decoration. Keep it lean and current.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **GoiFlow** (490 symbols, 849 relationships, 30 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **GoiFlow** (497 symbols, 891 relationships, 32 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

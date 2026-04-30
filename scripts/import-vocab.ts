@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { ContentSourceName, JlptLevel, PromptType } from "@prisma/client";
 import JishoAPI, { JishoResult } from "unofficial-jisho-api";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "../src/server/db/client";
 import { access, readFile, writeFile } from "node:fs/promises";
 
@@ -37,6 +38,8 @@ type CliOptions = {
   retryBaseMs: number;
   progressFile?: string;
   resume: boolean;
+  ai: boolean;
+  kanjiDict?: string;
 };
 
 type PreparedVocabRecord = {
@@ -240,6 +243,8 @@ function parseOptions(): CliOptions {
     retryBaseMs,
     progressFile: progressFile ?? (ingest === "jisho" ? "scripts/data/.import-progress.json" : undefined),
     resume: hasFlag("--resume"),
+    ai: hasFlag("--ai"),
+    kanjiDict: getArgValue("--kanji-dict"),
   };
 }
 
@@ -306,7 +311,7 @@ async function withRetry<T>(
       if (attempt > options.maxRetries) {
         throw error;
       }
-
+      // Tính toán thời gian chờ dựa trên số lần thử
       const waitMs = Math.min(options.retryBaseMs * 2 ** (attempt - 1), 8000);
       const message = error instanceof Error ? error.message : "Unknown error";
       console.warn(`[import-vocab] Retry ${attempt}/${options.maxRetries} for ${label}: ${message}`);
@@ -330,6 +335,72 @@ async function loadProgress(path: string): Promise<ImportProgress | undefined> {
 
 async function saveProgress(path: string, progress: ImportProgress) {
   await writeFile(path, JSON.stringify(progress, null, 2), "utf8");
+}
+
+/**
+ * Load the KanjiDictVN bank file and build a lookup map: kanji char -> primary Sino-Vietnamese reading.
+ * The bank format is an array of tuples: [kanji, "âm1 âm2 ...", "", "", [meanings], {meta}]
+ * We capitalise the first reading (the most authoritative) as the canonical form.
+ */
+async function loadKanjiDict(path: string): Promise<Map<string, string>> {
+  const content = await readFile(path, "utf8");
+  const entries = JSON.parse(content) as [string, string, string, string, string[], Record<string, string>][];
+  const map = new Map<string, string>();
+  for (const entry of entries) {
+    const kanji = entry[0];
+    const readings = entry[1]?.trim();
+    if (!kanji || !readings) continue;
+    // Take the first space-separated reading and capitalise it
+    const primary = readings.split(/\s+/)[0];
+    if (primary) {
+      map.set(kanji, primary.charAt(0).toUpperCase() + primary.slice(1));
+    }
+  }
+  return map;
+}
+
+/**
+ * ENRICH STAGE 2a — deterministic amHanViet from KanjiDictVN.
+ * Splits term into individual characters, looks up each in the map, and joins them.
+ * Characters without a mapping are skipped with a warning (never hallucinated).
+ */
+function enrichFromKanjiDict(
+  input: RawVocabRecord,
+  kanjiMap: Map<string, string>,
+): RawVocabRecord {
+  // If amHanViet already populated (e.g. from file ingest), keep it
+  if ((input.amHanViet?.length ?? 0) > 0) return input;
+
+  const chars = [...input.term]; // Unicode-aware split
+  const parts: string[] = [];
+  const missing: string[] = [];
+
+  for (const char of chars) {
+    // Only lookup CJK Unified Ideographs (U+4E00–U+9FFF and extensions)
+    const codePoint = char.codePointAt(0) ?? 0;
+    const isCJK = (codePoint >= 0x4e00 && codePoint <= 0x9fff)
+      || (codePoint >= 0x3400 && codePoint <= 0x4dbf)  // Extension A
+      || (codePoint >= 0x20000 && codePoint <= 0x2a6df); // Extension B
+    if (!isCJK) continue; // Skip kana, punctuation, etc.
+
+    const reading = kanjiMap.get(char);
+    if (reading) {
+      parts.push(reading);
+    } else {
+      missing.push(char);
+    }
+  }
+
+  if (missing.length > 0) {
+    console.warn(`[kanji-dict] Missing mapping for kanji [${missing.join(", ")}] in term "${input.term}" — amHanViet will be partial or empty.`);
+  }
+
+  if (parts.length === 0) return input;
+
+  return {
+    ...input,
+    amHanViet: [parts.join(" ")],
+  };
 }
 
 async function enrichFromJisho(
@@ -369,7 +440,6 @@ async function enrichFromJisho(
   }
 
   const meaningsVi = uniqueValues(input.meaningsVi ?? []);
-  const fallbackMeaningsVi = meaningsEn.slice(0, 3);
 
   return {
     ...input,
@@ -378,10 +448,59 @@ async function enrichFromJisho(
     jlptLevel: jlptLevel ?? input.jlptLevel,
     partOfSpeech: input.partOfSpeech ?? partOfSpeech,
     meaningsEn,
-    meaningsVi: meaningsVi.length > 0 ? meaningsVi : fallbackMeaningsVi,
+    meaningsVi,
     amHanViet: uniqueValues(input.amHanViet ?? []),
     isCommon: input.isCommon ?? Boolean(best.is_common),
     acceptedAnswers: uniqueValues(input.acceptedAnswers ?? [japanese.reading]),
+  };
+}
+
+/**
+ * ENRICH STAGE 2b — Vietnamese meanings via Gemini.
+ * Only fills meaningsVi. Never generates amHanViet (that is KanjiDictVN's job).
+ */
+async function enrichFromAI(
+  input: RawVocabRecord,
+  options: CliOptions,
+  genAI: GoogleGenerativeAI,
+): Promise<RawVocabRecord> {
+  const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+
+  const prompt = `
+You are a Japanese-Vietnamese linguistic expert.
+Translate the Japanese word into natural Vietnamese meanings.
+
+Word: ${input.term}
+Reading: ${input.reading}
+Part of speech: ${input.partOfSpeech ?? "unknown"}
+English meanings: ${input.meaningsEn?.join(", ") || "N/A"}
+
+Rules:
+- Return only a JSON object with one field: "meaningsVi" (array of strings).
+- Each meaning should be a natural Vietnamese phrase, not a literal character-by-character translation.
+- Maximum 5 meanings. If you are unsure, return fewer.
+- Do NOT include any explanation, markdown, or extra text — pure JSON only.
+
+JSON response:`;
+
+  const result = await withRetry(
+    async () => {
+      const res = await model.generateContent(prompt);
+      const text = res.response.text();
+      const jsonMatch = text.match(/{[\s\S]*}/);
+      if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
+      const parsed = JSON.parse(jsonMatch[0]) as { meaningsVi?: string[] };
+      if (!Array.isArray(parsed.meaningsVi)) throw new Error("AI response missing meaningsVi array");
+      return parsed;
+    },
+    options,
+    `enrichFromAI(${input.term})`,
+  );
+
+  return {
+    ...input,
+    meaningsVi: uniqueValues([...(input.meaningsVi ?? []), ...(result.meaningsVi ?? [])]),
+    // amHanViet is intentionally NOT touched here — handled by enrichFromKanjiDict only
   };
 }
 
@@ -458,6 +577,21 @@ async function main() {
   const records = await loadInput(options.input);
   const jisho = options.ingest === "jisho" ? new JishoAPI() : undefined;
 
+  const genAI = options.ai && process.env.GEMINI_API_KEY
+    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    : undefined;
+
+  if (options.ai && !genAI) {
+    console.warn("[import-vocab] AI enrichment requested but GEMINI_API_KEY is missing in .env");
+  }
+
+  // Load KanjiDictVN lookup map if --kanji-dict path is provided
+  let kanjiMap: Map<string, string> | undefined;
+  if (options.kanjiDict) {
+    kanjiMap = await loadKanjiDict(options.kanjiDict);
+    console.log(`[import-vocab] Loaded KanjiDictVN: ${kanjiMap.size} kanji mappings from ${options.kanjiDict}`);
+  }
+
   const filteredByLevel = options.jlpt
     ? records.filter((record) => record.jlptLevel === options.jlpt)
     : records;
@@ -485,6 +619,8 @@ async function main() {
   console.log(`[import-vocab] Selected ${sliced.length} records after filters`);
   console.log(`[import-vocab] Ingest mode: ${options.ingest}`);
   console.log(`[import-vocab] Mode: ${options.dryRun ? "dry-run" : "persist"}`);
+  console.log(`[import-vocab] KanjiDict: ${kanjiMap ? "enabled" : "disabled (use --kanji-dict to enable)"}`);
+  console.log(`[import-vocab] AI enrichment: ${genAI ? "enabled" : "disabled (use --ai and GEMINI_API_KEY)"}`);
 
   for (let start = 0; start < sliced.length; start += options.batchSize) {
     const batch = sliced.slice(start, start + options.batchSize);
@@ -495,6 +631,8 @@ async function main() {
 
       try {
         let source = raw;
+
+        // Stage 1: INGEST — fetch from Jisho if requested
         if (options.ingest === "jisho") {
           if (!jisho) {
             throw new Error("Jisho ingest is not initialized");
@@ -506,6 +644,16 @@ async function main() {
 
           source = await enrichFromJisho(raw, globalIndex, options, jisho);
           jishoRecordCount += 1;
+        }
+
+        // Stage 2a: ENRICH amHanViet deterministically from KanjiDictVN
+        if (kanjiMap) {
+          source = enrichFromKanjiDict(source, kanjiMap);
+        }
+
+        // Stage 2b: ENRICH meaningsVi via AI — only if still missing
+        if (genAI && (source.meaningsVi?.length === 0)) {
+          source = await enrichFromAI(source, options, genAI);
         }
 
         const prepared = prepareRecord(source, globalIndex);

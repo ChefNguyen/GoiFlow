@@ -190,7 +190,7 @@ export default function ActiveGamePage() {
           promptText: round.promptText,
           rawAnswer: answer,
           isCorrect: data.isCorrect,
-          details: data.details,
+          details: data.details ?? undefined,
         },
         ...prev.slice(0, 19),
       ]);

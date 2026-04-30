@@ -7,7 +7,6 @@ import {
 import {
   findActiveRound,
   submitAnswer,
-  scoreSubmission,
   resolveRound,
 } from "@/server/repositories/game-round-repository";
 
@@ -55,24 +54,33 @@ export async function POST(
       participantId: String(participantId),
       rawAnswer: String(rawAnswer),
       normalizedAnswer: normalized,
+      isCorrect,
+      scoreAwarded,
     });
 
-    await scoreSubmission(submission.id, isCorrect, scoreAwarded);
-
-    // Auto-resolve round if correct OR 3rd wrong attempt
-    const participantSubmissions = activeRound.submissions.filter(s => s.participantId === participantId).length + 1;
-    const shouldAdvance = isCorrect || participantSubmissions >= 3;
+    const shouldAdvance = isCorrect || submission.attemptCount >= 3;
 
     if (shouldAdvance) {
       await resolveRound(activeRound.id);
     }
 
-    const details = shouldAdvance && activeRound.kanjiEntry ? {
-      meaningsVi: activeRound.kanjiEntry.meaningsVi,
-      amHanViet: activeRound.kanjiEntry.amHanViet,
-      onyomi: activeRound.kanjiEntry.onyomi,
-      kunyomi: activeRound.kanjiEntry.kunyomi,
-    } : undefined;
+    const details = shouldAdvance
+      ? activeRound.kanjiEntry
+        ? {
+            meaningsVi: activeRound.kanjiEntry.meaningsVi,
+            amHanViet: activeRound.kanjiEntry.amHanViet,
+            onyomi: activeRound.kanjiEntry.onyomi,
+            kunyomi: activeRound.kanjiEntry.kunyomi,
+          }
+        : activeRound.vocabularyEntry
+          ? {
+              meaningsVi: activeRound.vocabularyEntry.meaningsVi,
+              amHanViet: activeRound.vocabularyEntry.amHanViet,
+              onyomi: [activeRound.vocabularyEntry.reading],
+              kunyomi: [],
+            }
+          : undefined
+      : undefined;
 
     return NextResponse.json({
       submissionId: submission.id,

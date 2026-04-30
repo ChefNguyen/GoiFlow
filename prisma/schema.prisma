@@ -267,6 +267,7 @@ model GameSubmission {
   participantId    String
   rawAnswer        String
   normalizedAnswer String
+  attemptCount     Int             @default(1)
   isCorrect        Boolean?
   scoreAwarded     Int             @default(0)
   submittedAt      DateTime        @default(now())
