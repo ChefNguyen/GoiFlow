@@ -7,6 +7,16 @@
       "env": {
         "GOOGLE_CLOUD_PROJECT": "goiflow"
       }
+    },
+    "gitnexus": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "gitnexus", "mcp"]
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "--yes", "@upstash/context7-mcp"]
     }
   }
 }

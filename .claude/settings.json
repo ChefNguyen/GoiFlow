@@ -1,0 +1,8 @@
+{
+  "projectName": "GoiFlow",
+  "defaults": {
+    "docsRoot": "docs",
+    "featureRoot": "src/features",
+    "verifyCommand": "npm run verify"
+  }
+}
