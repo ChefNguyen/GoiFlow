@@ -38,11 +38,7 @@ export async function POST(
     const normalized = normalizeAnswer(String(rawAnswer));
     const usesHiraganaOnly = isHiraganaOnly(normalized);
 
-    // Collect accepted answers from kanjiEntry or vocabularyEntry
-    const acceptedValues = [
-      ...(activeRound.kanjiEntry?.acceptedAnswers ?? []),
-      ...(activeRound.vocabularyEntry?.acceptedAnswers ?? []),
-    ]
+    const acceptedValues = (activeRound.vocabularyEntry?.acceptedAnswers ?? [])
       .filter((a) => a.promptType === activeRound.promptType)
       .map((a) => a.normalizedValue);
 
@@ -64,22 +60,13 @@ export async function POST(
       await resolveRound(activeRound.id);
     }
 
-    const details = shouldAdvance
-      ? activeRound.kanjiEntry
-        ? {
-            meaningsVi: activeRound.kanjiEntry.meaningsVi,
-            amHanViet: activeRound.kanjiEntry.amHanViet,
-            onyomi: activeRound.kanjiEntry.onyomi,
-            kunyomi: activeRound.kanjiEntry.kunyomi,
-          }
-        : activeRound.vocabularyEntry
-          ? {
-              meaningsVi: activeRound.vocabularyEntry.meaningsVi,
-              amHanViet: activeRound.vocabularyEntry.amHanViet,
-              onyomi: [activeRound.vocabularyEntry.reading],
-              kunyomi: [],
-            }
-          : undefined
+    const details = shouldAdvance && activeRound.vocabularyEntry
+      ? {
+          meaningsVi: activeRound.vocabularyEntry.meaningsVi,
+          amHanViet: activeRound.vocabularyEntry.amHanViet,
+          onyomi: [activeRound.vocabularyEntry.reading],
+          kunyomi: [],
+        }
       : undefined;
 
     return NextResponse.json({

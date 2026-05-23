@@ -121,33 +121,6 @@ model Session {
   @@index([userId])
 }
 
-model KanjiEntry {
-  id               String           @id @default(cuid())
-  character        String           @unique
-  jlptLevel        JlptLevel
-  strokes          Int?
-  radicals         String[]
-  meaningsVi       String[]
-  onyomi           String[]
-  kunyomi          String[]
-  amHanViet        String[]
-  normalizedSearch String
-  difficultyWeight Int              @default(1)
-  isCommon         Boolean          @default(false)
-  sourceName       ContentSourceName
-  sourceRecordId   String
-  importVersion    String
-  normalizedAt     DateTime
-  acceptedAnswers  AcceptedAnswer[]
-  gameRounds       GameRound[]      @relation("GameRoundKanjiEntry")
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-
-  @@unique([sourceName, sourceRecordId])
-  @@index([jlptLevel])
-  @@index([normalizedSearch])
-}
-
 model VocabularyEntry {
   id                String           @id @default(cuid())
   term              String
@@ -182,17 +155,13 @@ model AcceptedAnswer {
   promptType        PromptType
   normalizedValue   String
   displayValue      String
-  kanjiEntryId      String?
   vocabularyEntryId String?
-  kanjiEntry        KanjiEntry?      @relation(fields: [kanjiEntryId], references: [id], onDelete: Cascade)
   vocabularyEntry   VocabularyEntry? @relation(fields: [vocabularyEntryId], references: [id], onDelete: Cascade)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  @@unique([kanjiEntryId, promptType, normalizedValue])
   @@unique([vocabularyEntryId, promptType, normalizedValue])
   @@index([promptType, normalizedValue])
-  @@index([kanjiEntryId])
   @@index([vocabularyEntryId])
 }
 
@@ -243,13 +212,11 @@ model GameRound {
   roundNumber       Int
   status            RoundStatus        @default(PENDING)
   promptType        PromptType
-  kanjiEntryId      String?
   vocabularyEntryId String?
   promptText        String
   startedAt         DateTime?
   resolvedAt        DateTime?
   gameSession       GameSession        @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
-  kanjiEntry        KanjiEntry?        @relation("GameRoundKanjiEntry", fields: [kanjiEntryId], references: [id], onDelete: SetNull)
   vocabularyEntry   VocabularyEntry?   @relation("GameRoundVocabularyEntry", fields: [vocabularyEntryId], references: [id], onDelete: SetNull)
   submissions       GameSubmission[]
   createdAt         DateTime           @default(now())
@@ -257,7 +224,6 @@ model GameRound {
 
   @@unique([gameSessionId, roundNumber])
   @@index([gameSessionId, status])
-  @@index([kanjiEntryId])
   @@index([vocabularyEntryId])
 }
 

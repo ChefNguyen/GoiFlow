@@ -272,6 +272,8 @@ export default function ActiveGamePage() {
   }
 
   const progressValue = round ? (round.roundNumber / maxRounds) * 100 : 0;
+  const promptLength = round?.promptText.length ?? 0;
+  const promptSizeClass = promptLength >= 4 ? "text-[5.5rem] md:text-[8rem]" : "text-[8rem] md:text-[12rem]";
 
   if (!sessionId || !participantId) return null;
 
@@ -294,11 +296,13 @@ export default function ActiveGamePage() {
             </p>
           )}
           {history.map((item, index) => {
-            const secondaryLabel = item.details?.amHanViet[0] ?? item.rawAnswer;
             const readingLabel = item.details
               ? [...item.details.kunyomi, ...item.details.onyomi].filter(Boolean).join(" / ")
               : item.rawAnswer;
-            const tertiaryLabel = item.details?.meaningsVi[0] ?? item.rawAnswer;
+            const secondaryLabel = item.details
+              ? item.details.amHanViet[0] || readingLabel || item.details.meaningsVi[0] || "—"
+              : item.rawAnswer;
+            const tertiaryLabel = item.details ? item.details.meaningsVi[0] || "—" : item.rawAnswer;
 
             return (
               <div
@@ -307,7 +311,7 @@ export default function ActiveGamePage() {
               >
                 <div className="flex min-w-0 flex-col">
                   <div className="mb-1 flex items-end gap-3">
-                    <span className="font-[family-name:var(--font-headline)] text-5xl font-bold leading-none text-[var(--color-primary)]">
+                    <span className="whitespace-nowrap font-[family-name:var(--font-headline)] text-5xl font-bold leading-none text-[var(--color-primary)]">
                       {item.promptText}
                     </span>
                     <div
@@ -358,7 +362,7 @@ export default function ActiveGamePage() {
             {loading && !round ? (
               <p className="text-[var(--color-secondary)]">Loading round...</p>
             ) : (
-              <h1 className="select-none text-[8rem] font-bold leading-none text-[var(--color-primary)] md:text-[12rem] transition-all">
+              <h1 className={`select-none whitespace-nowrap text-center font-bold leading-none text-[var(--color-primary)] transition-all ${promptSizeClass}`}>
                 {round?.promptText ?? "..."}
               </h1>
             )}

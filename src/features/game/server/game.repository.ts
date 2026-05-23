@@ -1,6 +1,6 @@
 import { prisma } from "@/server/db/client";
 import { CreateGameSessionInput, JoinGameSessionInput } from "../types";
-import { GameSessionStatus, JlptLevel, ParticipantRole } from "@prisma/client";
+import { GameSessionStatus, ParticipantRole } from "@prisma/client";
 import crypto from "crypto";
 
 export class GameRepository {
@@ -76,15 +76,4 @@ export class GameRepository {
     });
   }
 
-  async loadKanjiContentByLevelAndChunk(level: string, pageSize: number, skip: number) {
-    // JLPT level from Prisma enum
-    return prisma.kanjiEntry.findMany({
-      where: { jlptLevel: level as JlptLevel },
-      take: pageSize,
-      skip: skip,
-      include: {
-        acceptedAnswers: true
-      }
-    });
-  }
 }

@@ -39,6 +39,7 @@ type CliOptions = {
   progressFile?: string;
   resume: boolean;
   ai: boolean;
+  model: string;
   kanjiDict?: string;
 };
 
@@ -138,9 +139,14 @@ function prepareRecord(record: RawVocabRecord, index: number): PreparedVocabReco
     throw new Error(`Record #${index} missing jlptLevel`);
   }
 
-  const meaningsVi = uniqueValues(record.meaningsVi ?? []);
+  let meaningsVi = uniqueValues(record.meaningsVi ?? []);
   if (meaningsVi.length === 0) {
-    throw new Error(`Record #${index} (${record.term}) missing meaningsVi`);
+    if (record.meaningsEn && record.meaningsEn.length > 0) {
+      meaningsVi = record.meaningsEn;
+      console.warn(`[import-vocab] Record #${index} (${record.term}) missing meaningsVi — falling back to meaningsEn.`);
+    } else {
+      throw new Error(`Record #${index} (${record.term}) missing meaningsVi and meaningsEn`);
+    }
   }
 
   const acceptedAnswers = buildAcceptedAnswers(record);
@@ -244,6 +250,7 @@ function parseOptions(): CliOptions {
     progressFile: progressFile ?? (ingest === "jisho" ? "scripts/data/.import-progress.json" : undefined),
     resume: hasFlag("--resume"),
     ai: hasFlag("--ai"),
+    model: getArgValue("--model") ?? "gemma-4-31b-it",
     kanjiDict: getArgValue("--kanji-dict"),
   };
 }
@@ -311,10 +318,18 @@ async function withRetry<T>(
       if (attempt > options.maxRetries) {
         throw error;
       }
-      // Tính toán thời gian chờ dựa trên số lần thử
-      const waitMs = Math.min(options.retryBaseMs * 2 ** (attempt - 1), 8000);
+      // Tính toán thời gian chờ dựa trên số lần thử và loại lỗi
       const message = error instanceof Error ? error.message : "Unknown error";
-      console.warn(`[import-vocab] Retry ${attempt}/${options.maxRetries} for ${label}: ${message}`);
+      const isQuotaError = message.includes("429") || message.toLowerCase().includes("quota");
+      const waitMs = isQuotaError 
+        ? 60000 
+        : Math.min(options.retryBaseMs * 2 ** (attempt - 1), 8000);
+
+      if (isQuotaError) {
+        console.warn(`[import-vocab] Rate limit (429) hit for ${label}. Sleeping 60s to let rate limit window clear...`);
+      } else {
+        console.warn(`[import-vocab] Retry ${attempt}/${options.maxRetries} for ${label}: ${message}`);
+      }
       await sleep(waitMs);
     }
   }
@@ -464,12 +479,15 @@ async function enrichFromAI(
   options: CliOptions,
   genAI: GoogleGenerativeAI,
 ): Promise<RawVocabRecord> {
-  const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+  const model = genAI.getGenerativeModel({
+    model: options.model,
+    systemInstruction: {
+      role: "system",
+      parts: [{ text: "You are a Japanese-Vietnamese linguistic expert. Translate the Japanese word into natural Vietnamese meanings." }]
+    }
+  });
 
   const prompt = `
-You are a Japanese-Vietnamese linguistic expert.
-Translate the Japanese word into natural Vietnamese meanings.
-
 Word: ${input.term}
 Reading: ${input.reading}
 Part of speech: ${input.partOfSpeech ?? "unknown"}
@@ -487,10 +505,42 @@ JSON response:`;
     async () => {
       const res = await model.generateContent(prompt);
       const text = res.response.text();
-      const jsonMatch = text.match(/{[\s\S]*}/);
-      if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
-      const parsed = JSON.parse(jsonMatch[0]) as { meaningsVi?: string[] };
-      if (!Array.isArray(parsed.meaningsVi)) throw new Error("AI response missing meaningsVi array");
+      
+      let jsonStr = "";
+      const mdMatch = text.match(/```json\s*({[\s\S]*?})\s*```/i) || text.match(/```\s*({[\s\S]*?})\s*```/i);
+      if (mdMatch?.[1]) {
+        jsonStr = mdMatch[1].trim();
+      } else {
+        const firstJsonMatch = text.match(/{[\s\S]*?}/);
+        if (firstJsonMatch) {
+          jsonStr = firstJsonMatch[0].trim();
+        } else {
+          const greedyMatch = text.match(/{[\s\S]*}/);
+          if (greedyMatch) {
+            jsonStr = greedyMatch[0].trim();
+          }
+        }
+      }
+
+      if (!jsonStr) {
+        throw new Error("Failed to parse AI response as JSON");
+      }
+
+      let parsed: { meaningsVi?: string[] };
+      try {
+        parsed = JSON.parse(jsonStr) as { meaningsVi?: string[] };
+      } catch (parseError) {
+        const greedyMatch = text.match(/{[\s\S]*}/);
+        if (greedyMatch) {
+          parsed = JSON.parse(greedyMatch[0]) as { meaningsVi?: string[] };
+        } else {
+          throw parseError;
+        }
+      }
+
+      if (!Array.isArray(parsed.meaningsVi)) {
+        throw new Error("AI response missing meaningsVi array");
+      }
       return parsed;
     },
     options,
@@ -620,7 +670,7 @@ async function main() {
   console.log(`[import-vocab] Ingest mode: ${options.ingest}`);
   console.log(`[import-vocab] Mode: ${options.dryRun ? "dry-run" : "persist"}`);
   console.log(`[import-vocab] KanjiDict: ${kanjiMap ? "enabled" : "disabled (use --kanji-dict to enable)"}`);
-  console.log(`[import-vocab] AI enrichment: ${genAI ? "enabled" : "disabled (use --ai and GEMINI_API_KEY)"}`);
+  console.log(`[import-vocab] AI enrichment: ${genAI ? `enabled (${options.model})` : "disabled (use --ai and GEMINI_API_KEY)"}`);
 
   for (let start = 0; start < sliced.length; start += options.batchSize) {
     const batch = sliced.slice(start, start + options.batchSize);
@@ -652,8 +702,21 @@ async function main() {
         }
 
         // Stage 2b: ENRICH meaningsVi via AI — only if still missing
-        if (genAI && (source.meaningsVi?.length === 0)) {
-          source = await enrichFromAI(source, options, genAI);
+        if (genAI && (!source.meaningsVi || source.meaningsVi.length === 0)) {
+          if (options.delayMs > 0) {
+            await sleep(options.delayMs);
+          }
+          try {
+            source = await enrichFromAI(source, options, genAI);
+          } catch (aiError) {
+            const msg = aiError instanceof Error ? aiError.message : String(aiError);
+            const isQuotaError = msg.includes("429") || msg.toLowerCase().includes("quota");
+            if (isQuotaError) {
+              console.error(`\n[import-vocab] FATAL: Daily API Quota exceeded for "${source.term}". Terminating script to preserve progress.`);
+              process.exit(1);
+            }
+            console.warn(`[import-vocab] AI enrichment failed for "${source.term}" (${msg}) — will fall back to English meanings.`);
+          }
         }
 
         const prepared = prepareRecord(source, globalIndex);

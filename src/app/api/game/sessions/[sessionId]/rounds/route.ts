@@ -40,12 +40,12 @@ export async function POST(
 
       skippedRoundDetails = {
         promptText: activeRound.promptText,
-        details: activeRound.kanjiEntry
+        details: activeRound.vocabularyEntry
           ? {
-              meaningsVi: activeRound.kanjiEntry.meaningsVi,
-              amHanViet: activeRound.kanjiEntry.amHanViet,
-              onyomi: activeRound.kanjiEntry.onyomi,
-              kunyomi: activeRound.kanjiEntry.kunyomi,
+              meaningsVi: activeRound.vocabularyEntry.meaningsVi,
+              amHanViet: activeRound.vocabularyEntry.amHanViet,
+              onyomi: [activeRound.vocabularyEntry.reading],
+              kunyomi: [],
             }
           : undefined,
       };

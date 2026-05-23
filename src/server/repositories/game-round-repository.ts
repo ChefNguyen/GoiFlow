@@ -6,7 +6,6 @@ export async function createGameRound(input: {
   roundNumber: number;
   promptType: PromptType;
   promptText: string;
-  kanjiEntryId?: string;
   vocabularyEntryId?: string;
 }) {
   return prisma.gameRound.create({
@@ -15,12 +14,10 @@ export async function createGameRound(input: {
       roundNumber: input.roundNumber,
       promptType: input.promptType,
       promptText: input.promptText,
-      kanjiEntryId: input.kanjiEntryId ?? null,
       vocabularyEntryId: input.vocabularyEntryId ?? null,
       status: RoundStatus.PENDING,
     },
     include: {
-      kanjiEntry: { include: { acceptedAnswers: true } },
       vocabularyEntry: { include: { acceptedAnswers: true } },
     },
   });
@@ -44,7 +41,6 @@ export async function findActiveRound(gameSessionId: string) {
   return prisma.gameRound.findFirst({
     where: { gameSessionId, status: RoundStatus.ACTIVE },
     include: {
-      kanjiEntry: { include: { acceptedAnswers: true } },
       vocabularyEntry: { include: { acceptedAnswers: true } },
       submissions: true,
     },
@@ -58,7 +54,6 @@ export async function findRoundByNumber(
   return prisma.gameRound.findUnique({
     where: { gameSessionId_roundNumber: { gameSessionId, roundNumber } },
     include: {
-      kanjiEntry: { include: { acceptedAnswers: true } },
       vocabularyEntry: { include: { acceptedAnswers: true } },
       submissions: true,
     },
