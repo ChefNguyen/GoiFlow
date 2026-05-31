@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { JlptLevel } from "@prisma/client";
-import { selectAndCreateNextRound } from "@/server/services/content-selection-service";
+import { selectAndCreateNextRound, toVocabularyHistoryDetails } from "@/server/services/content-selection-service";
 import { activateRound, findActiveRound, resolveRound } from "@/server/repositories/game-round-repository";
 import { findGameSessionById } from "@/server/repositories/game-session-repository";
 import { prisma } from "@/server/db/client";
@@ -23,6 +23,7 @@ export async function POST(
     let skippedRoundDetails:
       | {
           promptText: string;
+          vocabularyEntryId?: string | null;
           details?: {
             meaningsVi: string[];
             amHanViet: string[];
@@ -40,13 +41,9 @@ export async function POST(
 
       skippedRoundDetails = {
         promptText: activeRound.promptText,
+        vocabularyEntryId: activeRound.vocabularyEntryId,
         details: activeRound.vocabularyEntry
-          ? {
-              meaningsVi: activeRound.vocabularyEntry.meaningsVi,
-              amHanViet: activeRound.vocabularyEntry.amHanViet,
-              onyomi: [activeRound.vocabularyEntry.reading],
-              kunyomi: [],
-            }
+          ? toVocabularyHistoryDetails(activeRound.vocabularyEntry)
           : undefined,
       };
 
@@ -84,6 +81,7 @@ export async function POST(
       promptText: activated.promptText,
       promptType: activated.promptType,
       startedAt: activated.startedAt,
+      vocabularyEntryId: round.vocabularyEntryId,
       skippedRoundDetails,
     });
   } catch (error) {
@@ -110,6 +108,7 @@ export async function GET(
       promptText: round.promptText,
       promptType: round.promptType,
       startedAt: round.startedAt,
+      vocabularyEntryId: round.vocabularyEntryId,
       submissions: round.submissions.map((s) => ({
         participantId: s.participantId,
         submittedAt: s.submittedAt,

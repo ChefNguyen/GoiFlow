@@ -13,6 +13,7 @@ type RoundState = {
   promptText: string;
   promptType: string;
   startedAt: string;
+  vocabularyEntryId?: string | null;
 };
 
 type LeaderboardEntry = {
@@ -24,17 +25,44 @@ type LeaderboardEntry = {
   active: boolean;
 };
 
+type VocabularyHistoryDetails = {
+  meaningsVi: string[];
+  amHanViet: string[];
+  onyomi: string[];
+  kunyomi: string[];
+};
+
 type HistoryItem = {
   promptText: string;
   rawAnswer: string;
   isCorrect: boolean;
-  details?: {
-    meaningsVi: string[];
-    amHanViet: string[];
-    onyomi: string[];
-    kunyomi: string[];
-  };
+  vocabularyEntryId?: string | null;
+  details?: VocabularyHistoryDetails;
 };
+
+type VocabularyHistoryResponse = {
+  vocabularyEntryId?: string;
+  details?: VocabularyHistoryDetails;
+};
+
+const LAST_GAME_SESSION_KEY = "goiflow:last-game-session";
+const PLAYED_GAME_SESSIONS_KEY = "goiflow:played-game-sessions";
+const MAX_STORED_SESSION_IDS = 100;
+
+function rememberPlayedGameSession(sessionId: string) {
+  const existingValue = window.localStorage.getItem(PLAYED_GAME_SESSIONS_KEY);
+  const existingIds = existingValue ? JSON.parse(existingValue) : [];
+  const sessionIds = Array.isArray(existingIds)
+    ? existingIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+    : [];
+  const nextSessionIds = [sessionId, ...sessionIds.filter((id) => id !== sessionId)].slice(
+    0,
+    MAX_STORED_SESSION_IDS,
+  );
+
+  window.localStorage.setItem(LAST_GAME_SESSION_KEY, sessionId);
+  window.localStorage.setItem(PLAYED_GAME_SESSIONS_KEY, JSON.stringify(nextSessionIds));
+}
 
 type SessionResponse = {
   roomCode?: string;
@@ -56,6 +84,11 @@ export default function ActiveGamePage() {
   const sessionId = searchParams.get("session");
   const participantId = searchParams.get("participant");
 
+  useEffect(() => {
+    if (!sessionId) return;
+    rememberPlayedGameSession(sessionId);
+  }, [sessionId]);
+
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<"submit" | "skip" | null>(null);
@@ -66,6 +99,27 @@ export default function ActiveGamePage() {
   const [roomCode, setRoomCode] = useState("");
   const [maxRounds, setMaxRounds] = useState(10);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchVocabularyHistoryDetails = useCallback(
+    async (
+      vocabularyEntryId: string | null | undefined,
+      fallback?: VocabularyHistoryDetails
+    ): Promise<VocabularyHistoryDetails | undefined> => {
+      if (!vocabularyEntryId) return fallback;
+
+      try {
+        const response = await fetch(`/api/game/vocabulary/${vocabularyEntryId}`);
+        if (!response.ok) return fallback;
+
+        const data = (await response.json()) as VocabularyHistoryResponse;
+        return data.details ?? fallback;
+      } catch (err) {
+        console.error("Failed to load vocabulary history details", err);
+        return fallback;
+      }
+    },
+    []
+  );
 
   const hydrateSession = useCallback(async () => {
     if (!sessionId || !participantId) return;
@@ -173,7 +227,11 @@ export default function ActiveGamePage() {
   }, [loadOrCreateRound]);
 
   async function handleSubmit() {
-    if (!answer.trim() || !sessionId || !participantId || !round) return;
+    if (!sessionId || !participantId || !round) return;
+    if (!answer.trim()) {
+      await handleSkip();
+      return;
+    }
     setLoading(true);
     setPendingAction("submit");
     try {
@@ -185,12 +243,16 @@ export default function ActiveGamePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Submit failed");
 
+      const vocabularyEntryId = data.vocabularyEntryId ?? undefined;
+      const details = await fetchVocabularyHistoryDetails(vocabularyEntryId, data.details ?? undefined);
+
       setHistory((prev) => [
         {
           promptText: round.promptText,
           rawAnswer: answer,
           isCorrect: data.isCorrect,
-          details: data.details ?? undefined,
+          vocabularyEntryId,
+          details,
         },
         ...prev.slice(0, 19),
       ]);
@@ -243,12 +305,19 @@ export default function ActiveGamePage() {
       }
 
       if (data.skippedRoundDetails) {
+        const vocabularyEntryId = data.skippedRoundDetails.vocabularyEntryId ?? round.vocabularyEntryId;
+        const details = await fetchVocabularyHistoryDetails(
+          vocabularyEntryId,
+          data.skippedRoundDetails.details
+        );
+
         setHistory((prev) => [
           {
             promptText: data.skippedRoundDetails.promptText,
             rawAnswer: "Skipped",
             isCorrect: false,
-            details: data.skippedRoundDetails.details,
+            vocabularyEntryId,
+            details,
           },
           ...prev.slice(0, 19),
         ]);
@@ -307,39 +376,37 @@ export default function ActiveGamePage() {
             return (
               <div
                 key={`${item.promptText}-${index}`}
-                className="flex items-start justify-between gap-4 border-b border-[var(--color-outline-variant)] p-4 transition-none hover:bg-[var(--color-surface-container)]"
+                className="border-b border-[var(--color-outline-variant)] p-5 transition-none hover:bg-[var(--color-surface-container)]"
               >
-                <div className="flex min-w-0 flex-col">
-                  <div className="mb-1 flex items-end gap-3">
-                    <span className="whitespace-nowrap font-[family-name:var(--font-headline)] text-5xl font-bold leading-none text-[var(--color-primary)]">
-                      {item.promptText}
-                    </span>
-                    <div
-                      className={item.isCorrect
-                        ? "flex h-6 w-6 shrink-0 items-center justify-center bg-[var(--color-primary)]"
-                        : "flex h-6 w-6 shrink-0 items-center justify-center border-2 border-[var(--color-primary)] bg-transparent"}
-                      aria-label={item.isCorrect ? "Correct answer" : "Incorrect or skipped answer"}
-                    >
-                      {item.isCorrect ? (
-                        <span className="material-symbols-outlined text-[14px] font-bold text-[var(--color-on-primary)]">
-                          check
-                        </span>
-                      ) : (
-                        <span className="material-symbols-outlined text-[14px] font-bold text-[var(--color-primary)]">
-                          close
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-primary)]">
-                    {secondaryLabel}
+                <div className="mb-1 flex items-center gap-3">
+                  <span className="font-[family-name:var(--font-headline)] text-5xl font-bold leading-none text-[var(--color-primary)]">
+                    {item.promptText}
                   </span>
-                </div>
-                {item.details && (
-                  <div className="min-w-0 shrink-0 text-right">
-                    <span className="mt-1 block text-xs text-[var(--color-secondary)]">{readingLabel}</span>
-                    <span className="mt-0.5 block text-xs text-[var(--color-secondary)]">{tertiaryLabel}</span>
+                  <div
+                    className={item.isCorrect
+                      ? "flex h-6 w-6 shrink-0 items-center justify-center bg-[var(--color-primary)]"
+                      : "flex h-6 w-6 shrink-0 items-center justify-center border-2 border-[var(--color-primary)] bg-transparent"}
+                    aria-label={item.isCorrect ? "Correct answer" : "Incorrect or skipped answer"}
+                  >
+                    {item.isCorrect ? (
+                      <span className="material-symbols-outlined text-[14px] font-bold text-[var(--color-on-primary)]">
+                        check
+                      </span>
+                    ) : (
+                      <span className="material-symbols-outlined text-[14px] font-bold text-[var(--color-primary)]">
+                        close
+                      </span>
+                    )}
                   </div>
+                </div>
+                <span className="text-sm font-bold uppercase tracking-widest text-[var(--color-primary)]">
+                  {secondaryLabel}
+                </span>
+                {item.details && (
+                  <>
+                    <span className="mt-1 block text-sm text-[var(--color-secondary)]">{readingLabel}</span>
+                    <span className="mt-1 block text-sm text-[var(--color-secondary)]">{tertiaryLabel}</span>
+                  </>
                 )}
               </div>
             );
@@ -389,7 +456,7 @@ export default function ActiveGamePage() {
               variant="primary"
               className="mt-4 w-full py-3"
               onClick={handleSubmit}
-              disabled={loading || !answer.trim()}
+              disabled={loading || !round}
             >
               {pendingAction === "submit" ? "Submitting..." : "Submit"}
             </Button>

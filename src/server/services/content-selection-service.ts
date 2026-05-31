@@ -3,6 +3,7 @@ import {
   getRandomVocabularyByLevel,
   countVocabularyByLevel,
   listVocabularyIdsUsedInSession,
+  type VocabularyHistoryDetailsRecord,
 } from "@/server/repositories/content-repository";
 import { createGameRound } from "@/server/repositories/game-round-repository";
 
@@ -12,6 +13,24 @@ export type RoundContentInput = {
   jlptLevel: JlptLevel;
   promptType?: PromptType;
 };
+
+export type VocabularyHistoryDetails = {
+  meaningsVi: string[];
+  amHanViet: string[];
+  onyomi: string[];
+  kunyomi: string[];
+};
+
+export function toVocabularyHistoryDetails(
+  vocabularyEntry: VocabularyHistoryDetailsRecord
+): VocabularyHistoryDetails {
+  return {
+    meaningsVi: vocabularyEntry.meaningsVi,
+    amHanViet: vocabularyEntry.amHanViet,
+    onyomi: vocabularyEntry.reading ? [vocabularyEntry.reading] : [],
+    kunyomi: [],
+  };
+}
 
 export async function selectAndCreateNextRound(input: RoundContentInput) {
   const vocabularyCount = await countVocabularyByLevel(input.jlptLevel);

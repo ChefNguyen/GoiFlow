@@ -1,6 +1,13 @@
 import { prisma } from "@/server/db/client";
 import { JlptLevel, Prisma } from "@prisma/client";
 
+export type VocabularyHistoryDetailsRecord = {
+  id: string;
+  reading: string;
+  meaningsVi: string[];
+  amHanViet: string[];
+};
+
 export async function getVocabularyByLevel(
   jlptLevel: JlptLevel,
   options: { take?: number; skip?: number } = {}
@@ -63,4 +70,18 @@ export async function listVocabularyIdsUsedInSession(gameSessionId: string) {
 
 export async function countVocabularyByLevel(jlptLevel: JlptLevel) {
   return prisma.vocabularyEntry.count({ where: { jlptLevel } });
+}
+
+export async function findVocabularyHistoryDetailsById(
+  vocabularyEntryId: string
+): Promise<VocabularyHistoryDetailsRecord | null> {
+  return prisma.vocabularyEntry.findUnique({
+    where: { id: vocabularyEntryId },
+    select: {
+      id: true,
+      reading: true,
+      meaningsVi: true,
+      amHanViet: true,
+    },
+  });
 }

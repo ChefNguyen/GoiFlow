@@ -101,3 +101,43 @@ export async function listRoundsForSession(gameSessionId: string) {
     include: { submissions: true },
   });
 }
+
+export async function listHistoryRoundsForSession(gameSessionId: string) {
+  return prisma.gameRound.findMany({
+    where: {
+      gameSessionId,
+      submissions: { some: {} },
+    },
+    orderBy: { roundNumber: "desc" },
+    include: {
+      vocabularyEntry: true,
+      submissions: {
+        orderBy: { submittedAt: "desc" },
+        include: { participant: true },
+      },
+    },
+  });
+}
+
+export async function listHistoryRoundsForSessions(gameSessionIds: string[]) {
+  return prisma.gameRound.findMany({
+    where: {
+      gameSessionId: { in: gameSessionIds },
+      submissions: { some: {} },
+    },
+    orderBy: [{ updatedAt: "desc" }, { roundNumber: "desc" }],
+    include: {
+      gameSession: {
+        select: {
+          id: true,
+          roomCode: true,
+        },
+      },
+      vocabularyEntry: true,
+      submissions: {
+        orderBy: { submittedAt: "desc" },
+        include: { participant: true },
+      },
+    },
+  });
+}

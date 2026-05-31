@@ -3,6 +3,7 @@ import {
   normalizeAnswer,
   checkAnswer,
   isHiraganaOnly,
+  toVocabularyHistoryDetails,
 } from "@/server/services/content-selection-service";
 import {
   findActiveRound,
@@ -61,12 +62,7 @@ export async function POST(
     }
 
     const details = shouldAdvance && activeRound.vocabularyEntry
-      ? {
-          meaningsVi: activeRound.vocabularyEntry.meaningsVi,
-          amHanViet: activeRound.vocabularyEntry.amHanViet,
-          onyomi: [activeRound.vocabularyEntry.reading],
-          kunyomi: [],
-        }
+      ? toVocabularyHistoryDetails(activeRound.vocabularyEntry)
       : undefined;
 
     return NextResponse.json({
@@ -76,6 +72,7 @@ export async function POST(
       normalizedAnswer: normalized,
       shouldAdvance,
       validationMessage: usesHiraganaOnly ? null : "Use hiragana only",
+      vocabularyEntryId: shouldAdvance ? activeRound.vocabularyEntryId : undefined,
       details,
     });
   } catch (error) {
