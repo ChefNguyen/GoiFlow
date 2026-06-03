@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, type MouseEvent } from "react";
+import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import {
+  getHistoryStorage,
+  migrateGuestHistoryToLocalStorage,
+  rememberPlayedGameSession,
+} from "@/features/game/history-storage";
 
 type RoundState = {
   roundId: string;
@@ -45,27 +51,11 @@ type VocabularyHistoryResponse = {
   details?: VocabularyHistoryDetails;
 };
 
-const LAST_GAME_SESSION_KEY = "goiflow:last-game-session";
-const PLAYED_GAME_SESSIONS_KEY = "goiflow:played-game-sessions";
-const MAX_STORED_SESSION_IDS = 100;
-
-function rememberPlayedGameSession(sessionId: string) {
-  const existingValue = window.localStorage.getItem(PLAYED_GAME_SESSIONS_KEY);
-  const existingIds = existingValue ? JSON.parse(existingValue) : [];
-  const sessionIds = Array.isArray(existingIds)
-    ? existingIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
-    : [];
-  const nextSessionIds = [sessionId, ...sessionIds.filter((id) => id !== sessionId)].slice(
-    0,
-    MAX_STORED_SESSION_IDS,
-  );
-
-  window.localStorage.setItem(LAST_GAME_SESSION_KEY, sessionId);
-  window.localStorage.setItem(PLAYED_GAME_SESSIONS_KEY, JSON.stringify(nextSessionIds));
-}
-
 type SessionResponse = {
+  id?: string;
   roomCode?: string;
+  status?: "WAITING" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
+  currentRoundNumber?: number;
   maxRounds?: number;
   participants?: Array<{ id: string; displayName: string }>;
   standings?: Array<{
@@ -77,17 +67,26 @@ type SessionResponse = {
   }>;
 };
 
+type RoundResponse = Partial<RoundState> & {
+  activeRound?: null | RoundState;
+  status?: "WAITING" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
+  currentRoundNumber?: number;
+  maxRounds?: number;
+  error?: string;
+};
+
+function isRoundState(value: RoundResponse): value is RoundState {
+  return Boolean(value.roundId && value.roundNumber && value.promptText && value.promptType && value.startedAt);
+}
+
 export default function ActiveGamePage() {
+  const { status } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const sessionId = searchParams.get("session");
   const participantId = searchParams.get("participant");
-
-  useEffect(() => {
-    if (!sessionId) return;
-    rememberPlayedGameSession(sessionId);
-  }, [sessionId]);
+  const isAuthenticated = status === "authenticated";
 
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
@@ -99,6 +98,44 @@ export default function ActiveGamePage() {
   const [roomCode, setRoomCode] = useState("");
   const [maxRounds, setMaxRounds] = useState(10);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchingRound = useRef(false);
+  const pollingRound = useRef(false);
+  const pollingSession = useRef(false);
+  const redirectingToResults = useRef(false);
+  const roundRef = useRef<RoundState | null>(null);
+  const loadingRef = useRef(false);
+  const pendingActionRef = useRef<"submit" | "skip" | null>(null);
+
+  useEffect(() => {
+    roundRef.current = round;
+  }, [round]);
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  useEffect(() => {
+    pendingActionRef.current = pendingAction;
+  }, [pendingAction]);
+
+  useEffect(() => {
+    if (status === "loading" || !sessionId) return;
+
+    if (isAuthenticated) {
+      migrateGuestHistoryToLocalStorage();
+    }
+
+    rememberPlayedGameSession(sessionId, getHistoryStorage(isAuthenticated));
+  }, [isAuthenticated, sessionId, status]);
+
+  const finishAndRedirect = useCallback(async () => {
+    if (!sessionId || !participantId || redirectingToResults.current) return;
+
+    redirectingToResults.current = true;
+    await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
+    router.push(`/results?session=${sessionId}&participant=${participantId}`);
+  }, [participantId, router, sessionId]);
 
   const fetchVocabularyHistoryDetails = useCallback(
     async (
@@ -121,16 +158,7 @@ export default function ActiveGamePage() {
     []
   );
 
-  const hydrateSession = useCallback(async () => {
-    if (!sessionId || !participantId) return;
-
-    const response = await fetch(`/api/game/sessions/${sessionId}`);
-    const data = (await response.json()) as SessionResponse;
-
-    if (!response.ok) {
-      throw new Error("Failed to load session");
-    }
-
+  const applySessionResponse = useCallback((data: SessionResponse) => {
     if (data.roomCode) setRoomCode(data.roomCode);
     if (data.maxRounds) setMaxRounds(data.maxRounds);
 
@@ -160,7 +188,48 @@ export default function ActiveGamePage() {
         active: participant.id === participantId,
       })),
     );
-  }, [participantId, sessionId]);
+  }, [participantId]);
+
+  const hydrateSession = useCallback(async () => {
+    if (!sessionId || !participantId) return null;
+
+    const response = await fetch(`/api/game/sessions/${sessionId}`);
+    const data = (await response.json()) as SessionResponse;
+
+    if (!response.ok) {
+      throw new Error("Failed to load session");
+    }
+
+    applySessionResponse(data);
+    return data;
+  }, [applySessionResponse, participantId, sessionId]);
+
+  const refreshRoundFromServer = useCallback(async () => {
+    if (!sessionId) return null;
+
+    const response = await fetch(`/api/game/sessions/${sessionId}/rounds`);
+    const data = (await response.json()) as RoundResponse;
+
+    if (!response.ok) {
+      throw new Error(data.error ?? "Failed to refresh round");
+    }
+
+    if (data.status === "FINISHED") {
+      await finishAndRedirect();
+      return null;
+    }
+
+    if (isRoundState(data)) {
+      const currentRound = roundRef.current;
+      if (!currentRound || data.roundId !== currentRound.roundId) {
+        setRound(data);
+        setAnswer("");
+      }
+      return data;
+    }
+
+    return null;
+  }, [finishAndRedirect, sessionId]);
 
   // Redirect if no session/participant
   useEffect(() => {
@@ -177,7 +246,6 @@ export default function ActiveGamePage() {
   }, [hydrateSession]);
 
   // Load or create first round
-  const fetchingRound = useRef(false);
   const loadOrCreateRound = useCallback(async () => {
     if (!sessionId || fetchingRound.current) return;
     fetchingRound.current = true;
@@ -186,9 +254,14 @@ export default function ActiveGamePage() {
     try {
       // Try to get active round first
       const getRes = await fetch(`/api/game/sessions/${sessionId}/rounds`);
-      const getData = await getRes.json();
-      
-      if (getRes.ok && !getData.activeRound && getData.roundId) {
+      const getData = (await getRes.json()) as RoundResponse;
+
+      if (getRes.ok && getData.status === "FINISHED") {
+        await finishAndRedirect();
+        return;
+      }
+
+      if (getRes.ok && isRoundState(getData)) {
         setRound(getData);
         setAnswer("");
         return;
@@ -202,11 +275,10 @@ export default function ActiveGamePage() {
       if (!postRes.ok) {
         throw new Error(data.error ?? "Failed to load round");
       }
-      
+
       if (data.status === "FINISHED") {
         // All rounds done — go to results
-        await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
-        router.push(`/results?session=${sessionId}&participant=${participantId}`);
+        await finishAndRedirect();
         return;
       }
 
@@ -218,13 +290,71 @@ export default function ActiveGamePage() {
       setLoading(false);
       fetchingRound.current = false;
     }
-  }, [sessionId, participantId, router]);
+  }, [finishAndRedirect, sessionId]);
 
   useEffect(() => {
     queueMicrotask(() => {
       void loadOrCreateRound();
     });
   }, [loadOrCreateRound]);
+
+  useEffect(() => {
+    if (!sessionId || !participantId) return;
+
+    const intervalId = window.setInterval(() => {
+      if (pollingRound.current || loadingRef.current || pendingActionRef.current) return;
+
+      pollingRound.current = true;
+      void refreshRoundFromServer()
+        .then((serverRound) => {
+          if (!serverRound) return;
+
+          const currentRound = roundRef.current;
+          if (!currentRound || serverRound.roundNumber !== currentRound.roundNumber) {
+            void hydrateSession().catch(console.error);
+          }
+        })
+        .catch((err) => console.error("Failed to poll round state", err))
+        .finally(() => {
+          pollingRound.current = false;
+        });
+    }, 1500);
+
+    return () => window.clearInterval(intervalId);
+  }, [hydrateSession, participantId, refreshRoundFromServer, sessionId]);
+
+  useEffect(() => {
+    if (!sessionId || !participantId) return;
+
+    const intervalId = window.setInterval(() => {
+      if (pollingSession.current || loadingRef.current || pendingActionRef.current) return;
+
+      pollingSession.current = true;
+      void hydrateSession()
+        .then((data) => {
+          if (!data) return;
+          if (data.status === "FINISHED") {
+            void finishAndRedirect();
+            return;
+          }
+
+          const currentRound = roundRef.current;
+          if (
+            typeof data.currentRoundNumber === "number" &&
+            currentRound &&
+            data.currentRoundNumber !== currentRound.roundNumber
+          ) {
+            void refreshRoundFromServer().catch(console.error);
+          }
+        })
+        .catch((err) => console.error("Failed to poll session state", err))
+        .finally(() => {
+          pollingSession.current = false;
+        });
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [finishAndRedirect, hydrateSession, participantId, refreshRoundFromServer, sessionId]);
 
   async function handleSubmit() {
     if (!sessionId || !participantId || !round) return;
@@ -277,8 +407,7 @@ export default function ActiveGamePage() {
     setError(null);
 
     try {
-      await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
-      router.push(`/results?session=${sessionId}&participant=${participantId}`);
+      await finishAndRedirect();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to finish session");
       setLoading(false);
@@ -324,8 +453,7 @@ export default function ActiveGamePage() {
       }
 
       if (data.status === "FINISHED") {
-        await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
-        router.push(`/results?session=${sessionId}&participant=${participantId}`);
+        await finishAndRedirect();
         return;
       }
 

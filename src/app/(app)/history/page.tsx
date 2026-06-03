@@ -1,8 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import {
+  getHistoryStorage,
+  migrateGuestHistoryToLocalStorage,
+  readPlayedGameSessionIds,
+  rememberPlayedGameSession,
+} from "@/features/game/history-storage";
 
 type VocabularyHistoryDetails = {
   meaningsVi: string[];
@@ -39,29 +46,7 @@ type VocabularyHistoryResponse = {
 };
 
 const filters = ["All", "Correct", "Needs Review"] as const;
-const LAST_GAME_SESSION_KEY = "goiflow:last-game-session";
-const PLAYED_GAME_SESSIONS_KEY = "goiflow:played-game-sessions";
 const MAX_HISTORY_ENTRIES = 100;
-
-function parseStoredSessionIds(value: string | null) {
-  if (!value) return [];
-
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function rememberHistorySessionId(sessionId: string, sessionIds: string[]) {
-  const nextSessionIds = [sessionId, ...sessionIds.filter((id) => id !== sessionId)];
-  window.localStorage.setItem(PLAYED_GAME_SESSIONS_KEY, JSON.stringify(nextSessionIds));
-  window.localStorage.setItem(LAST_GAME_SESSION_KEY, sessionId);
-  return nextSessionIds;
-}
 
 function formatReviewedAt(value: string) {
   const date = new Date(value);
@@ -89,8 +74,10 @@ function getAmHanVietLabel(details?: VocabularyHistoryDetails) {
 }
 
 export default function HistoryPage() {
+  const { status } = useSession();
   const searchParams = useSearchParams();
   const sessionParam = searchParams.get("session");
+  const isAuthenticated = status === "authenticated";
   const [sessionIds, setSessionIds] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("All");
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -99,18 +86,18 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      const storedSessionIds = parseStoredSessionIds(window.localStorage.getItem(PLAYED_GAME_SESSIONS_KEY));
-      const lastSessionId = window.localStorage.getItem(LAST_GAME_SESSION_KEY);
-      const fallbackSessionIds = storedSessionIds.length > 0
-        ? storedSessionIds
-        : lastSessionId
-          ? [lastSessionId]
-          : [];
+    if (status === "loading") return;
 
-      setSessionIds(sessionParam ? rememberHistorySessionId(sessionParam, fallbackSessionIds) : fallbackSessionIds);
+    queueMicrotask(() => {
+      if (isAuthenticated) {
+        migrateGuestHistoryToLocalStorage();
+      }
+
+      const storage = getHistoryStorage(isAuthenticated);
+      const storedSessionIds = readPlayedGameSessionIds(storage);
+      setSessionIds(sessionParam ? rememberPlayedGameSession(sessionParam, storage) : storedSessionIds);
     });
-  }, [sessionParam]);
+  }, [isAuthenticated, sessionParam, status]);
 
   const hydrateVocabularyDetails = useCallback(async (entry: HistoryEntry): Promise<HistoryEntry> => {
     if (!entry.vocabularyEntryId) return entry;
@@ -197,8 +184,10 @@ export default function HistoryPage() {
                 </h1>
                 <p className="font-[family-name:var(--font-body)] text-sm uppercase tracking-[0.12em] text-[var(--color-secondary)]">
                   {sessionIds.length > 0
-                    ? `${reviewedCount} / ${MAX_HISTORY_ENTRIES} Items Reviewed · ${sessionCount} Sessions · ${accuracy}% Correct`
-                    : "Open a game session to review vocabulary history"}
+                    ? `${reviewedCount} / ${MAX_HISTORY_ENTRIES} Items Reviewed · ${sessionCount} Sessions · ${accuracy}% Correct · ${isAuthenticated ? "Saved History" : "This Tab"}`
+                    : isAuthenticated
+                      ? "Play a game session to build saved history"
+                      : "Play a game session to review history for this tab"}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">

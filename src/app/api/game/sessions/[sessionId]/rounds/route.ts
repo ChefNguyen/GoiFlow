@@ -97,12 +97,26 @@ export async function GET(
 ) {
   try {
     const { sessionId } = await params;
-    const round = await findActiveRound(sessionId);
-    if (!round) {
-      return NextResponse.json({ activeRound: null }, { status: 200 });
+    const [session, round] = await Promise.all([
+      findGameSessionById(sessionId),
+      findActiveRound(sessionId),
+    ]);
+
+    if (!session) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
+    const sessionMetadata = {
+      status: session.status,
+      currentRoundNumber: session.currentRoundNumber,
+      maxRounds: session.maxRounds,
+    };
+
+    if (!round) {
+      return NextResponse.json({ ...sessionMetadata, activeRound: null }, { status: 200 });
+    }
+
+    const activeRound = {
       roundId: round.id,
       roundNumber: round.roundNumber,
       promptText: round.promptText,
@@ -113,6 +127,12 @@ export async function GET(
         participantId: s.participantId,
         submittedAt: s.submittedAt,
       })),
+    };
+
+    return NextResponse.json({
+      ...sessionMetadata,
+      ...activeRound,
+      activeRound,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";

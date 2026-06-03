@@ -2,37 +2,30 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import { env, type AuthEnv } from "@/server/auth/env";
+import { authenticateUser } from "@/server/services/auth-service";
 
-const DEV_AUTH_ID = "dev-login";
-const DEV_AUTH_LABEL = "Dev sign in";
+const CREDENTIALS_PROVIDER_ID = "credentials";
 
-function isDevAuthEnabled(input: AuthEnv) {
-  return input.ENABLE_DEV_AUTH === "true";
-}
-
-function getDevCredentialsProvider() {
+function getCredentialsProvider() {
   return CredentialsProvider({
-    id: DEV_AUTH_ID,
-    name: DEV_AUTH_LABEL,
+    id: CREDENTIALS_PROVIDER_ID,
+    name: "Sign in",
     credentials: {
-      dev: { label: "Dev", type: "text" },
+      email: { label: "Email", type: "email" },
+      password: { label: "Password", type: "password" },
     },
-    async authorize() {
-      return {
-        id: "dev-user",
-        name: "Dev User",
-        email: "dev@localhost",
-      };
+    async authorize(credentials) {
+      return authenticateUser(credentials?.email, credentials?.password);
     },
   });
 }
 
 function getProviderLabel(providerId: string, fallback: string) {
-  return providerId === DEV_AUTH_ID ? DEV_AUTH_LABEL : fallback;
+  return providerId === CREDENTIALS_PROVIDER_ID ? "Sign in" : fallback;
 }
 
-function getProviderId(providerId: string) {
-  return providerId === "credentials" ? DEV_AUTH_ID : providerId;
+function getProviderType(providerId: string) {
+  return providerId === CREDENTIALS_PROVIDER_ID ? "credentials" : "oauth";
 }
 
 type ProviderDescriptor = {
@@ -70,29 +63,25 @@ function getOAuthProviders(input: AuthEnv): ProviderDescriptor[] {
   return providers;
 }
 
-export { DEV_AUTH_ID, isDevAuthEnabled };
-
 export interface EnabledAuthProvider {
   id: string;
   label: string;
+  type: "credentials" | "oauth";
 }
 
 export function getEnabledAuthProviders(input: AuthEnv = env) {
-  const providers = [...getOAuthProviders(input)];
-
-  if (isDevAuthEnabled(input)) {
-    providers.unshift(getDevCredentialsProvider());
-  }
-
-  return providers;
+  const oauthProviders = getOAuthProviders(input);
+  // Credentials provider is always enabled (real DB auth)
+  return [getCredentialsProvider(), ...oauthProviders];
 }
 
 export function getEnabledAuthProviderDescriptors(
   input: AuthEnv = env,
 ): EnabledAuthProvider[] {
   return getEnabledAuthProviders(input).map((provider) => ({
-    id: getProviderId(provider.id),
+    id: provider.id,
     label: getProviderLabel(provider.id, provider.name),
+    type: getProviderType(provider.id) as "credentials" | "oauth",
   }));
 }
 

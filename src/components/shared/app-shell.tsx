@@ -1,8 +1,9 @@
 "use client";
 
 import type { Session } from "next-auth";
+import { SessionProvider } from "next-auth/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { buttonStyles } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,10 +24,14 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
+  const callbackUrl = `${pathname}${queryString ? `?${queryString}` : ""}`;
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)] text-[var(--color-on-surface)]">
-      <header className="border-b-2 border-[var(--color-primary)] bg-[var(--color-surface)]">
+    <SessionProvider session={session}>
+      <div className="min-h-screen bg-[var(--color-surface)] text-[var(--color-on-surface)]">
+        <header className="border-b-2 border-[var(--color-primary)] bg-[var(--color-surface)]">
         <div className="flex min-h-16 items-center justify-between px-6 py-4 lg:px-8">
           <div className="flex items-center gap-8">
             <Link
@@ -70,7 +75,7 @@ export function AppShell({
                 <SignOutButton />
               </>
             ) : (
-              <Link href="/sign-in" className={buttonStyles("secondary", "px-4 py-3")}>
+              <Link href={`/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`} className={buttonStyles("secondary", "px-4 py-3")}>
                 Sign in
               </Link>
             )}
@@ -97,8 +102,9 @@ export function AppShell({
             );
           })}
         </nav>
-      </header>
-      <main>{children}</main>
-    </div>
+        </header>
+        <main>{children}</main>
+      </div>
+    </SessionProvider>
   );
 }
