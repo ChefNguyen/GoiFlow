@@ -4,7 +4,7 @@ import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { SignOutButton } from "@/components/shared/sign-out-button";
+import { UserMenu } from "@/components/shared/user-menu";
 import { buttonStyles } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -13,14 +13,17 @@ const navLinks = [
   { href: "/shiritori", label: "Shiritori", isActive: (pathname: string) => pathname.startsWith("/shiritori") },
   { href: "/library", label: "Library", isActive: (pathname: string) => pathname.startsWith("/library") },
   { href: "/history", label: "History", isActive: (pathname: string) => pathname.startsWith("/history") },
-  { href: "/settings", label: "Settings", isActive: (pathname: string) => pathname.startsWith("/settings") },
 ];
 
 export function AppShell({
   session,
+  avatarUrl,
+  displayName = "Learner",
   children,
 }: {
   session?: Session | null;
+  avatarUrl?: string | null;
+  displayName?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -64,16 +67,12 @@ export function AppShell({
           </div>
           <div className="flex items-center gap-3">
             {session?.user ? (
-              <>
-                <Link
-                  href="/profile"
-                  aria-label="Open profile"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] font-[family-name:var(--font-label)] text-sm font-semibold uppercase text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
-                >
-                  {(session.user.name ?? session.user.email ?? "U").trim().charAt(0)}
-                </Link>
-                <SignOutButton />
-              </>
+              <UserMenu
+                avatarUrl={avatarUrl}
+                avatarInitial={displayName.trim().charAt(0).toUpperCase()}
+                displayName={displayName}
+                email={session.user?.email}
+              />
             ) : (
               <Link href={`/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`} className={buttonStyles("secondary", "px-4 py-3")}>
                 Sign in

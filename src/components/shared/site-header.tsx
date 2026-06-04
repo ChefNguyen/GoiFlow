@@ -1,16 +1,34 @@
 import Link from "next/link";
 import { buttonStyles } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { auth } from "@/auth";
+import { UserMenu } from "./user-menu";
+import { prisma } from "@/server/db/client";
 
 const navLinks = [
   { href: "/game/setup", label: "Game" },
   { href: "/shiritori/setup", label: "Shiritori" },
   { href: "/library", label: "Library" },
   { href: "/history", label: "History" },
-  { href: "/settings", label: "Settings" },
 ];
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const session = await auth();
+
+  let avatarUrl: string | null = null;
+  let displayName = "Learner";
+
+  if (session?.user?.id) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { image: true, name: true, email: true },
+    });
+    if (dbUser) {
+      avatarUrl = dbUser.image;
+      displayName = dbUser.name ?? dbUser.email ?? "Learner";
+    }
+  }
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b-2 border-[var(--color-primary)] bg-[var(--color-surface)]">
       <div className="flex min-h-16 items-center justify-between px-6 py-4 lg:px-8">
@@ -34,12 +52,18 @@ export function SiteHeader() {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/sign-in" className={buttonStyles("secondary", "px-4 py-3")}>
-            Sign in
-          </Link>
-          <Link href="/game/setup" className={cn(buttonStyles("primary", "px-4 py-3 !text-white"))}>
-            Start game
-          </Link>
+          {session ? (
+            <UserMenu
+              avatarUrl={avatarUrl}
+              avatarInitial={displayName.charAt(0).toUpperCase()}
+              displayName={displayName}
+              email={session.user?.email}
+            />
+          ) : (
+            <Link href="/sign-in" className={buttonStyles("secondary", "px-4 py-3")}>
+              Sign in
+            </Link>
+          )}
         </div>
       </div>
       <nav className="grid grid-cols-5 border-t border-[var(--color-outline-variant)] md:hidden">

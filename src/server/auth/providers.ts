@@ -1,8 +1,8 @@
 import CredentialsProvider from "next-auth/providers/credentials";
-import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
 import { env, type AuthEnv } from "@/server/auth/env";
-import { authenticateUser } from "@/server/services/auth-service";
+import { verifyOtp } from "@/server/services/auth-service";
 
 const CREDENTIALS_PROVIDER_ID = "credentials";
 
@@ -12,10 +12,10 @@ function getCredentialsProvider() {
     name: "Sign in",
     credentials: {
       email: { label: "Email", type: "email" },
-      password: { label: "Password", type: "password" },
+      otp: { label: "OTP", type: "text" },
     },
     async authorize(credentials) {
-      return authenticateUser(credentials?.email, credentials?.password);
+      return verifyOtp(credentials?.email, credentials?.otp);
     },
   });
 }
@@ -36,28 +36,30 @@ type ProviderDescriptor = {
 function getOAuthProviders(input: AuthEnv): ProviderDescriptor[] {
   const providers: ProviderDescriptor[] = [];
 
-  const githubProvider =
-    input.GITHUB_ID && input.GITHUB_SECRET
-      ? GitHubProvider({
-          clientId: input.GITHUB_ID,
-          clientSecret: input.GITHUB_SECRET,
-        })
-      : null;
-
-  if (githubProvider) {
-    providers.push(githubProvider);
-  }
-
   const googleProvider =
     input.GOOGLE_CLIENT_ID && input.GOOGLE_CLIENT_SECRET
       ? GoogleProvider({
           clientId: input.GOOGLE_CLIENT_ID,
           clientSecret: input.GOOGLE_CLIENT_SECRET,
+          allowDangerousEmailAccountLinking: true,
         })
       : null;
 
   if (googleProvider) {
     providers.push(googleProvider);
+  }
+
+  const facebookProvider =
+    input.FACEBOOK_APP_ID && input.FACEBOOK_APP_SECRET
+      ? FacebookProvider({
+          clientId: input.FACEBOOK_APP_ID,
+          clientSecret: input.FACEBOOK_APP_SECRET,
+          allowDangerousEmailAccountLinking: true,
+        })
+      : null;
+
+  if (facebookProvider) {
+    providers.push(facebookProvider);
   }
 
   return providers;
@@ -88,3 +90,4 @@ export function getEnabledAuthProviderDescriptors(
 export function hasOAuthProviders(input: AuthEnv = env) {
   return getOAuthProviders(input).length > 0;
 }
+

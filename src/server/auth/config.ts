@@ -22,10 +22,18 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/sign-in",
   },
+  debug: true,
   callbacks: {
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+      }
+      // Strip out base64 avatar images to prevent session cookie overflow (exceeding 4KB limit)
+      if (token.picture && typeof token.picture === "string" && token.picture.startsWith("data:")) {
+        delete token.picture;
+      }
+      if (token.image && typeof token.image === "string" && token.image.startsWith("data:")) {
+        delete token.image;
       }
       return token;
     },
