@@ -35,7 +35,14 @@ beforeEach(() => {
 
 describe("createAndSendOtp", () => {
   it("generates a 6-digit code, saves to db, and sends email", async () => {
-    mockOtpCreate.mockResolvedValue({ id: "otp-1" } as any);
+    mockOtpCreate.mockResolvedValue({
+      id: "otp-1",
+      email: "test@example.com",
+      code: "123456",
+      expiresAt: new Date(),
+      usedAt: null,
+      createdAt: new Date(),
+    });
 
     await createAndSendOtp("test@example.com");
 
@@ -65,13 +72,18 @@ describe("verifyOtp", () => {
       usedAt: null,
       createdAt: new Date(),
     };
-    mockOtpFindFirst.mockResolvedValue(mockOtpRecord as any);
-    mockOtpUpdate.mockResolvedValue({} as any);
+    mockOtpFindFirst.mockResolvedValue(mockOtpRecord);
+    mockOtpUpdate.mockResolvedValue(mockOtpRecord);
     mockUserFindUnique.mockResolvedValue({
       id: "user-123",
       name: "Bob",
       email,
-    } as any);
+      emailVerified: null,
+      image: null,
+      passwordHash: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     const result = await verifyOtp(email, code);
 

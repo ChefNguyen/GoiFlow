@@ -17,7 +17,6 @@ export default function AvatarUpload({
   displayName,
 }: AvatarUploadProps) {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl ?? null);
@@ -34,6 +33,11 @@ export default function AvatarUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  const closeModal = () => {
+    if (isUploading) return;
+    setIsOpen(false);
+  };
+
   // Escape key to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -47,18 +51,13 @@ export default function AvatarUpload({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, isUploading]);
 
   const openModal = () => {
     setIsOpen(true);
     setStep("upload");
     setImageSrc(null);
     setErrorMsg("");
-  };
-
-  const closeModal = () => {
-    if (isUploading) return;
-    setIsOpen(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -212,9 +211,9 @@ export default function AvatarUpload({
       setAvatarUrl(croppedBase64);
       setIsOpen(false);
       router.refresh();
-    } catch (err: any) {
-      console.error("Error cropping/uploading avatar:", err);
-      setErrorMsg(err.message || "Đã xảy ra lỗi khi lưu ảnh.");
+    } catch (error) {
+      console.error("Error cropping/uploading avatar:", error);
+      setErrorMsg(error instanceof Error ? error.message : "Đã xảy ra lỗi khi lưu ảnh.");
     } finally {
       setIsUploading(false);
     }
@@ -243,9 +242,9 @@ export default function AvatarUpload({
 
       setAvatarUrl(null);
       router.refresh();
-    } catch (err: any) {
-      console.error("Error deleting avatar:", err);
-      setErrorMsg(err.message || "Đã xảy ra lỗi khi xóa ảnh.");
+    } catch (error) {
+      console.error("Error deleting avatar:", error);
+      setErrorMsg(error instanceof Error ? error.message : "Đã xảy ra lỗi khi xóa ảnh.");
     } finally {
       setIsUploading(false);
     }
