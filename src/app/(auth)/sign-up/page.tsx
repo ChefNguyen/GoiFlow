@@ -1,6 +1,6 @@
   "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,7 +12,7 @@ function getSafeCallbackUrl(value: string | null) {
   return value;
 }
 
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
@@ -216,3 +216,22 @@ export default function SignUpPage() {
     </main>
   );
 }
+
+function SignUpFallback() {
+  return (
+    <main className="flex min-h-screen flex-grow items-center justify-center bg-[var(--color-surface)] p-6">
+      <div className="relative w-full max-w-[480px] bg-[var(--color-surface-container-lowest)] p-12 text-center text-[var(--color-secondary)]">
+        Loading...
+      </div>
+    </main>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<SignUpFallback />}>
+      <SignUpForm />
+    </Suspense>
+  );
+}
+
