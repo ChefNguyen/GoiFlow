@@ -14,9 +14,9 @@ jobs:
     env:
       # Biến môi trường theo .env.example của dự án
       # DATABASE_URL dùng Supabase cloud — set qua GitHub Secrets
-      DATABASE_URL: "postgresql://postgres.mdmpubffazuutrzvpway:Tannguyen286%40@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres"
-      AUTH_SECRET: "kjafh82fkjaf83hfkah832fakjsf8h3fkabsf8hiadf"
-      NEXTAUTH_SECRET: "kjafh82fkjaf83hfkah832fakjsf8h3fkabsf8hiadf"
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      NEXTAUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       NEXTAUTH_URL: "http://localhost:3000"
       NEXT_PUBLIC_APP_URL: "http://localhost:3000"
       ENABLE_DEV_AUTH: "true"
@@ -33,6 +33,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      - name: Upload npm debug log
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-debug-log
+          path: /home/runner/.npm/_logs/*-debug-0.log
+          if-no-files-found: warn
 
       - name: Generate Prisma Client
         run: npx prisma generate
