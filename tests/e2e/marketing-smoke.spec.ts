@@ -5,9 +5,9 @@ test("marketing page loads", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: "Start GoiFlow with real foundations, not a disposable prototype.",
+      name: "Quiz Mode",
     }),
   ).toBeVisible();
 
-  await expect(page.getByRole("link", { name: "Open the app" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start Game" })).toBeVisible();
 });
