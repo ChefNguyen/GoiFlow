@@ -1,69 +1,57 @@
-﻿# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
+# Dependencies
+node_modules/
+.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
-# testing
-/coverage
+# Next.js & Web builds
+.next/
+out/
+build/
+web/.next/
+web/out/
+web/build/
 
-# next.js
-/.next/
-/out/
+# Java Spring Boot builds
+target/
+api/target/
+*.class
+*.jar
+*.war
 
-# production
-/build
+# Testing & Coverage
+coverage/
+playwright-report/
+test-results/
 
-# misc
+# Misc
+scratch/
+scripts/
+.claude/
 .DS_Store
 *.pem
+Thumbs.db
+.vscode/
+.idea/
+.gitnexus/
 
-# debug
+# Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-!.env.example
+# Environment files
+.env*.local
+.env.production
+.env.staging
+web/.env*.local
+web/.env.production
+web/.env.staging
 
-# vercel
+# Vercel
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
-
-# playwright
-playwright-report/
-test-results/
-
-# local Claude overrides
-.claude/settings.local.json
-.claude/CLAUDE.local.md
-.claude/worktrees/
-.claude/history/
-.claude/projects/
-
-# local screenshots and temp captures
-screen_*.png
-
-# local database files
-*.db
-*.db-journal
-*.sqlite
-*.sqlite3
-
-# editor and OS
-Thumbs.db
-.vscode/
-.idea/
-.gitnexus
-
+web/next-env.d.ts

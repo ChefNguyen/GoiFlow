@@ -1,7 +1,13 @@
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes. APIs, conventions, and file structure may differ from stale examples. Read the relevant guides in `node_modules/next/dist/docs/` before making framework-level assumptions, and heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **GoiFlow** (827 symbols, 1462 relationships, 19 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **GoiFlow** (1412 symbols, 2423 relationships, 99 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
