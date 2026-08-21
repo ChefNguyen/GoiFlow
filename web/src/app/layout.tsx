@@ -34,7 +34,7 @@ export default function RootLayout({
     >
       <body
         suppressHydrationWarning
-        className="min-h-full bg-[var(--color-page)] text-[var(--color-ink)]"
+        className="min-h-full bg-[var(--color-surface)] text-[var(--color-on-surface)]"
       >
         {children}
       </body>
