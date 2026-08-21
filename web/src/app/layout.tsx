@@ -14,11 +14,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "GoiFlow",
+    default: "GoiFlow — Master Japanese Vocabulary & Speed Battle",
     template: "%s | GoiFlow",
   },
   description:
-    "Workflow SaaS starter scaffold with auth, multi-tenant foundations, and a lean Claude Code harness.",
+    "Master Japanese Kanji & Vocabulary with fast-paced quiz flows, stroke order animations, and multiplayer battles.",
 };
 
 export default function RootLayout({
