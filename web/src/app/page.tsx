@@ -27,27 +27,27 @@ export default function LandingPage() {
   return (
     <>
       <SiteHeader />
-      <main className="min-h-screen bg-[var(--color-surface)] text-[var(--color-on-surface)] pt-16">
-        <section className="flex min-h-[716px] flex-col items-center justify-center px-4">
-        <div className="mx-auto max-w-3xl space-y-12 text-center">
-          <h1 className="font-[family-name:var(--font-headline)] text-[4rem] leading-tight font-bold tracking-tight md:text-[5rem] lg:text-[6rem]">
+      <main className="min-h-screen bg-[var(--color-surface)] text-[var(--color-on-surface)] pt-12">
+        <section className="flex min-h-[calc(100vh-280px)] flex-col items-center justify-center px-4 py-16">
+        <div className="mx-auto max-w-3xl space-y-8 text-center">
+          <h1 className="font-[family-name:var(--font-headline)] text-[3.5rem] leading-tight font-bold tracking-tight md:text-[4.5rem] lg:text-[5.5rem]">
             語彙フロー
           </h1>
-          <p className="mx-auto max-w-xl text-lg tracking-[0.02em] text-[var(--color-secondary)] md:text-xl">
+          <p className="mx-auto max-w-xl text-base tracking-[0.02em] text-[var(--color-secondary)] md:text-lg">
             Master Japanese vocabulary through focused, continuous immersion.
           </p>
-          <div className="flex flex-col items-center justify-center gap-6 pt-8 sm:flex-row">
-            <Link href="/game/setup" className={buttonStyles("primary", "w-full px-10 py-5 sm:w-auto !text-white")}>
+          <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
+            <Link href="/game/setup" className={buttonStyles("primary", "w-full px-8 py-3.5 sm:w-auto !text-white")}>
               Start Game
             </Link>
-            <Link href="/shiritori/setup" className={buttonStyles("secondary", "w-full px-10 py-5 sm:w-auto")}>
+            <Link href="/shiritori/setup" className={buttonStyles("secondary", "w-full px-8 py-3.5 sm:w-auto")}>
               Explore Shiritori
             </Link>
           </div>
         </div>
       </section>
 
-        <section className="border-t border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] px-8 py-32">
+        <section className="border-t border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] px-8 py-20 md:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="grid grid-cols-1 gap-16 md:grid-cols-3">
               {featureCards.map((feature) => (

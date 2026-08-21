@@ -84,7 +84,17 @@
   box-sizing: border-box;
 }
 
-html,
+html {
+  font-size: 85%;
+  min-height: 100%;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 80%;
+  }
+}
+
 body {
   min-height: 100%;
 }
