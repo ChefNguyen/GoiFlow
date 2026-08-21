@@ -47,6 +47,8 @@ yarn-error.log*
 web/.env*.local
 web/.env.production
 web/.env.staging
+**/application-local.yml
+**/application-local.properties
 
 # Vercel
 .vercel
