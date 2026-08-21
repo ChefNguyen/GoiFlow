@@ -27,6 +27,14 @@ const nextConfig: NextConfig = {
         source: "/api/leaderboard/:path*",
         destination: `${backendUrl}/leaderboard/:path*`,
       },
+      {
+        source: "/api/auth/register",
+        destination: `${backendUrl}/auth/register`,
+      },
+      {
+        source: "/api/auth/request-otp",
+        destination: `${backendUrl}/auth/request-otp`,
+      },
     ];
   },
 };

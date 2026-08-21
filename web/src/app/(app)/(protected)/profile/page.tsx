@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import AvatarUpload from "./avatar-upload";
 
@@ -30,7 +30,8 @@ export default async function ProfilePage() {
   };
 
   try {
-    const res = await fetch("http://localhost:8080/api/v1/user/profile", {
+    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";
+    const res = await fetch(`${backendUrl}/user/profile`, {
       headers: { "Authorization": `Bearer ${session.user.id}` },
       next: { revalidate: 60 },
     });
