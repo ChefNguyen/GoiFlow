@@ -32,7 +32,10 @@ export default async function LibraryPage(props: {
     params.set("page", String(page));
     params.set("limit", "8"); // Exactly 8 cards per page for a compact look
 
-    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";
+    let backendUrl = (process.env.BACKEND_API_URL || "http://localhost:8080/api/v1").replace(/\/+$/, "");
+    if (!backendUrl.endsWith("/api/v1")) {
+      backendUrl = `${backendUrl}/api/v1`;
+    }
     const res = await fetch(`${backendUrl}/library?${params.toString()}`, {
       next: { revalidate: 30 },
     });
