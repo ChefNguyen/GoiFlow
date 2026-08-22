@@ -214,11 +214,15 @@ export default function ActiveGamePage() {
     rememberPlayedGameSession(sessionId, getHistoryStorage(isAuthenticated));
   }, [isAuthenticated, sessionId, status]);
 
-  const finishAndRedirect = useCallback(async () => {
+  // Only marks session FINISHED if the caller is the host.
+  // Participants just redirect to their own results without ending the session.
+  const finishAndRedirect = useCallback(async (callerIsHost?: boolean) => {
     if (!sessionId || !participantId || redirectingToResults.current) return;
 
     redirectingToResults.current = true;
-    await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
+    if (callerIsHost) {
+      await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
+    }
     router.push(`/results?session=${sessionId}&participant=${participantId}`);
   }, [participantId, router, sessionId]);
 
@@ -332,13 +336,14 @@ export default function ActiveGamePage() {
 
     try {
       if (isHost) {
+        // Host leaving: finish session for everyone, then redirect
         const response = await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
         const data = await response.json().catch(() => null);
         if (!response.ok) {
           throw new Error(data?.error ?? "Failed to finish session");
         }
       }
-
+      // Participant leaving: session continues, only this player is redirected to their own results
       const pid = participantId || (typeof window !== "undefined" ? sessionStorage.getItem("participantId") : null);
       router.push(`/results?session=${sessionId}${pid ? `&participant=${pid}` : ""}`);
     } catch (err) {
@@ -349,7 +354,7 @@ export default function ActiveGamePage() {
     } finally {
       setIsLeavingGame(false);
     }
-  }, [isHost, router, sessionId]);
+  }, [isHost, participantId, router, sessionId]);
 
   useEffect(() => {
     function interceptInternalNavigation(event: globalThis.MouseEvent) {
@@ -705,7 +710,7 @@ export default function ActiveGamePage() {
     setError(null);
 
     try {
-      await finishAndRedirect();
+      await finishAndRedirect(isHost);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to finish session");
       setLoading(false);
