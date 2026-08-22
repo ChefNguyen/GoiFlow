@@ -428,7 +428,8 @@ export default function ActiveGamePage() {
 
   // Advance to next round directly (randomizes new word on server)
   const advanceToNextRound = useCallback(async () => {
-    if (!sessionId) return null;
+    if (!sessionId || advancingRoundRef.current) return null;
+    advancingRoundRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -456,6 +457,7 @@ export default function ActiveGamePage() {
       return null;
     } finally {
       setLoading(false);
+      advancingRoundRef.current = false;
     }
   }, [finishAndRedirect, sessionId]);
 
@@ -532,7 +534,7 @@ export default function ActiveGamePage() {
     if (!sessionId || !participantId) return;
 
     const intervalId = window.setInterval(() => {
-      if (pollingRound.current || loadingRef.current || pendingActionRef.current) return;
+      if (pollingRound.current || loadingRef.current || pendingActionRef.current || advancingRoundRef.current) return;
 
       pollingRound.current = true;
       void refreshRoundFromServer()
@@ -557,7 +559,7 @@ export default function ActiveGamePage() {
     if (!sessionId || !participantId) return;
 
     const intervalId = window.setInterval(() => {
-      if (pollingSession.current || loadingRef.current || pendingActionRef.current) return;
+      if (pollingSession.current || loadingRef.current || pendingActionRef.current || advancingRoundRef.current) return;
 
       pollingSession.current = true;
       void hydrateSession()
@@ -1050,33 +1052,55 @@ export default function ActiveGamePage() {
 
       {isLeaveDialogOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all"
           role="dialog"
           aria-modal="true"
           aria-labelledby="leave-game-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isLeavingGame) {
+              setIsLeaveDialogOpen(false);
+            }
+          }}
         >
-          <div className="w-full max-w-md border border-[var(--color-outline-variant)] bg-[var(--color-surface)] p-7 shadow-2xl">
-            <p className="font-[family-name:var(--font-label)] text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-secondary)]">
-              Active Round
-            </p>
-            <h2 id="leave-game-title" className="mt-2 font-[family-name:var(--font-headline)] text-2xl font-bold text-[var(--color-primary)]">
-              Leave
+          <div className="relative w-full max-w-md border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-8 shadow-2xl">
+            {/* Top decorative left accent line */}
+            <div className="absolute top-0 left-0 bottom-0 w-2 bg-[var(--color-primary)]" />
+
+            <div className="flex items-center gap-2 mb-3">
+              <span className="material-symbols-outlined text-[var(--color-primary)] text-xl">
+                logout
+              </span>
+              <p className="font-[family-name:var(--font-label)] text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+                Active Match
+              </p>
+            </div>
+
+            <h2 id="leave-game-title" className="font-[family-name:var(--font-headline)] text-2xl font-bold tracking-tight text-[var(--color-primary)] md:text-3xl">
+              Leave this game?
             </h2>
-            <p className="mt-3 text-sm leading-6 text-[var(--color-secondary)]">
+
+            <p className="mt-4 text-sm leading-relaxed text-[var(--color-secondary)]">
               {isHost
-                ? "This will finish the session for everyone and take you to the leaderboard."
-                : "You will leave this game and go to the leaderboard. The host can continue the session."}
+                ? "Leaving now will conclude the active session for all participants and redirect to the final match results."
+                : "You will leave this game session and navigate to the standings. The host and other players will continue."}
             </p>
-            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button
                 variant="secondary"
+                className="px-6 py-3 text-xs uppercase tracking-wider font-semibold"
                 onClick={() => setIsLeaveDialogOpen(false)}
                 disabled={isLeavingGame}
               >
-                Stay
+                Stay in Match
               </Button>
-              <Button variant="primary" onClick={leaveGameAndGoToLeaderboard} disabled={isLeavingGame}>
-                {isLeavingGame ? "Leaving..." : "Leave"}
+              <Button 
+                variant="primary" 
+                className="px-6 py-3 text-xs uppercase tracking-wider font-semibold !text-white"
+                onClick={leaveGameAndGoToLeaderboard} 
+                disabled={isLeavingGame}
+              >
+                {isLeavingGame ? "Leaving..." : "Leave Match"}
               </Button>
             </div>
           </div>

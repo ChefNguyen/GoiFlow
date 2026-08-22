@@ -45,16 +45,9 @@ public class GameLifecycleService {
             }
         }
 
-        // 2. Compute next round number safely
+        // 2. Compute next round number safely (continuous gameplay until user explicitly finishes)
         int currentRoundNum = session.getCurrentRoundNumber() != null ? session.getCurrentRoundNumber() : 0;
-        int maxRounds = session.getMaxRounds() != null ? session.getMaxRounds() : 10;
         int nextRound = currentRoundNum + 1;
-
-        if (nextRound > maxRounds) {
-            session.setStatus(GameSessionStatus.FINISHED);
-            session.setFinishedAt(LocalDateTime.now());
-            return gameSessionRepository.save(session);
-        }
 
         // 3. Concurrency / Idempotency guard: check if nextRound already exists
         Optional<GameRoundEntity> existingRoundOpt = gameRoundRepository

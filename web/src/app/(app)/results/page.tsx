@@ -145,10 +145,11 @@ export default function ResultsPage() {
   };
 
   const playerCount = session?.participants.length ?? results.length;
+  const roundsPlayed = session?.currentRoundNumber || 1;
   const sessionSummary = session
-    ? `Room: ${session.roomCode} • ${session.maxRounds} Rounds • ${playerCount} Players`
+    ? `Room: ${session.roomCode} • ${roundsPlayed} Rounds Played • ${playerCount} ${playerCount === 1 ? "Player" : "Players"}`
     : sessionId
-      ? `Session ended • ${results.length} players`
+      ? `Session ended • ${results.length} ${results.length === 1 ? "player" : "players"}`
       : null;
 
   async function handlePlayAgain() {
@@ -171,14 +172,14 @@ export default function ResultsPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-16">
-      <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
-        <header className="mb-20 text-center">
-          <h1 className="mb-4 font-[family-name:var(--font-headline)] text-5xl font-bold uppercase tracking-tight text-[var(--color-primary)] md:text-6xl">
+    <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-12">
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-center">
+        <header className="mb-10 text-center">
+          <h1 className="mb-2 font-[family-name:var(--font-headline)] text-4xl font-bold uppercase tracking-tight text-[var(--color-primary)] md:text-5xl">
             Results
           </h1>
           {sessionSummary && (
-            <p className="font-[family-name:var(--font-body)] text-sm uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+            <p className="font-[family-name:var(--font-body)] text-xs uppercase tracking-[0.2em] text-[var(--color-secondary)]">
               {sessionSummary}
             </p>
           )}
@@ -196,7 +197,7 @@ export default function ResultsPage() {
 
         {!loading && !displayError && results.length > 0 && (
           <>
-            <section className="mb-24 flex h-64 w-full max-w-3xl items-end justify-center gap-2 md:gap-6">
+            <section className="mb-16 flex w-full max-w-2xl items-end justify-center gap-4 md:gap-6 pt-4">
               {podiumOrder.map((entry) => {
                 const slot = podiumSlotByRank[entry.rank] || podiumSlotByRank[3];
                 const isCurrentParticipant = entry.participantId === participantId;
@@ -205,28 +206,31 @@ export default function ResultsPage() {
                 return (
                   <div
                     key={entry.participantId}
-                    className={`flex w-1/3 flex-col items-center ${slot.outerClassName}`}
+                    className={`flex flex-1 flex-col items-center ${slot.outerClassName}`}
                   >
-                    <div className="mb-4 text-center">
-                      {isFirst && (
+                    <div className="flex flex-col items-center justify-end pb-3 text-center min-h-[90px]">
+                      {isFirst ? (
                         <span
-                          className="material-symbols-outlined mb-1 text-[var(--color-primary)]"
+                          className="material-symbols-outlined mb-1 text-3xl text-[var(--color-primary)]"
                           style={{ fontVariationSettings: '"FILL" 1' }}
+                          aria-hidden="true"
                         >
                           workspace_premium
                         </span>
+                      ) : (
+                        <div className="h-7 w-7 mb-1" />
                       )}
                       <span
-                        className={`block font-[family-name:var(--font-headline)] font-bold text-[var(--color-primary)] ${slot.nameClassName} ${isCurrentParticipant ? "underline" : ""}`}
+                        className={`block truncate max-w-[140px] md:max-w-[180px] font-[family-name:var(--font-headline)] font-bold text-[var(--color-primary)] ${slot.nameClassName} ${isCurrentParticipant ? "underline" : ""}`}
                       >
                         {entry.displayName}
                       </span>
-                      <span className="block font-[family-name:var(--font-body)] text-sm text-[var(--color-secondary)]">
-                        {entry.totalScore.toLocaleString()}
+                      <span className="block font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-wider text-[var(--color-secondary)]">
+                        {entry.totalScore.toLocaleString()} pts
                       </span>
                     </div>
                     <div
-                      className={`flex w-full items-start justify-center border pt-4 ${slot.heightClassName} ${slot.barClassName} ${isFirst ? "pt-6" : ""}`}
+                      className={`flex w-full items-center justify-center border ${slot.heightClassName} ${slot.barClassName}`}
                     >
                       <span
                         className={`font-[family-name:var(--font-headline)] font-bold ${slot.rankClassName}`}
