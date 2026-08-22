@@ -35,6 +35,14 @@ const nextConfig: NextConfig = {
         source: "/api/auth/request-otp",
         destination: `${backendUrl}/auth/request-otp`,
       },
+      {
+        source: "/api/auth/verify-otp",
+        destination: `${backendUrl}/auth/verify-otp`,
+      },
+      {
+        source: "/api/auth/login",
+        destination: `${backendUrl}/auth/login`,
+      },
     ];
   },
 };

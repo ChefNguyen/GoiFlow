@@ -15,19 +15,34 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        otp: { label: "OTP", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email) return null;
         try {
           const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";
-          const res = await fetch(`${backendUrl}/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password || "",
-            }),
-          });
+          
+          let res;
+          if (credentials.otp) {
+            res = await fetch(`${backendUrl}/auth/verify-otp`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: credentials.email,
+                otp: credentials.otp,
+              }),
+            });
+          } else {
+            res = await fetch(`${backendUrl}/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: credentials.email,
+                password: credentials.password || "",
+              }),
+            });
+          }
+
           if (!res.ok) return null;
           const user = await res.json();
           return { id: user.id, name: user.name, email: user.email, image: user.image };

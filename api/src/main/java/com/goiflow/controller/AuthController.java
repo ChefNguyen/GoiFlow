@@ -3,9 +3,11 @@ package com.goiflow.controller;
 import com.goiflow.dto.request.LoginRequest;
 import com.goiflow.dto.request.OtpRequest;
 import com.goiflow.dto.request.RegisterRequest;
+import com.goiflow.dto.request.VerifyOtpRequest;
 import com.goiflow.dto.response.ApiResponse;
 import com.goiflow.dto.response.AuthResponse;
 import com.goiflow.entity.auth.UserEntity;
+import com.goiflow.repository.UserRepository;
 import com.goiflow.security.JwtTokenProvider;
 import com.goiflow.service.AuthService;
 import jakarta.validation.Valid;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserRepository userRepository;
     private final JwtTokenProvider tokenProvider;
 
     @PostMapping("/register")
@@ -53,5 +56,23 @@ public class AuthController {
         }
         authService.createAndSendOtp(req.getEmail());
         return ResponseEntity.ok(ApiResponse.builder().success(true).message("OTP sent to " + req.getEmail()).build());
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody VerifyOtpRequest req) {
+        boolean valid = authService.verifyOtp(req.getEmail(), req.getOtp());
+        if (!valid) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.builder().success(false).error("Invalid or expired OTP code").build());
+        }
+        UserEntity user = userRepository.findByEmail(req.getEmail()).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.builder().success(false).error("User not found").build());
+        }
+        String token = tokenProvider.generateToken(user.getId(), user.getEmail(), user.getName());
+        return ResponseEntity.ok(
+                AuthResponse.builder().token(token).id(user.getId()).name(user.getName()).email(user.getEmail()).build()
+        );
     }
 }
