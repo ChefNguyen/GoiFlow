@@ -20,7 +20,10 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email) return null;
         try {
-          const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";
+          let backendUrl = (process.env.BACKEND_API_URL || "http://localhost:8080/api/v1").replace(/\/+$/, "");
+          if (!backendUrl.endsWith("/api/v1")) {
+            backendUrl = `${backendUrl}/api/v1`;
+          }
           
           let res;
           if (credentials.otp) {

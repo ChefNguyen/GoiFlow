@@ -30,7 +30,10 @@ export default async function ProfilePage() {
   };
 
   try {
-    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";
+    let backendUrl = (process.env.BACKEND_API_URL || "http://localhost:8080/api/v1").replace(/\/+$/, "");
+    if (!backendUrl.endsWith("/api/v1")) {
+      backendUrl = `${backendUrl}/api/v1`;
+    }
     const res = await fetch(`${backendUrl}/user/profile`, {
       headers: { "Authorization": `Bearer ${session.user.id}` },
       next: { revalidate: 60 },

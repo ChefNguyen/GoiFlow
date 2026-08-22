@@ -9,7 +9,10 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   async rewrites() {
-    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8080/api/v1";
+    let backendUrl = (process.env.BACKEND_API_URL || "http://localhost:8080/api/v1").replace(/\/+$/, "");
+    if (!backendUrl.endsWith("/api/v1")) {
+      backendUrl = `${backendUrl}/api/v1`;
+    }
     return [
       {
         source: "/api/game/:path*",
