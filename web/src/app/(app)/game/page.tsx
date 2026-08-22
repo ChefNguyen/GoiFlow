@@ -475,17 +475,12 @@ export default function ActiveGamePage() {
     try {
       const sessionData = await hydrateSession();
       if (sessionData?.status === "WAITING") {
-        if (!sessionData.isHost) {
-          setError("Waiting for the host to start the session.");
-          return;
-        }
-
-        const startRes = await fetch(`/api/game/sessions/${sessionId}/start`, {
-          method: "POST",
-        });
-        const startData = await startRes.json();
-        if (!startRes.ok) {
-          throw new Error(startData.error ?? "Failed to start session");
+        try {
+          await fetch(`/api/game/sessions/${sessionId}/start`, {
+            method: "POST",
+          });
+        } catch {
+          // ignore error and proceed to load round
         }
       }
 
@@ -576,11 +571,12 @@ export default function ActiveGamePage() {
           }
 
           const currentRound = roundRef.current;
-          if (
+          if (!currentRound) {
+            void loadOrCreateRound();
+          } else if (
             data.status === "IN_PROGRESS" &&
-            (!currentRound ||
-              (typeof data.currentRoundNumber === "number" &&
-                data.currentRoundNumber !== currentRound.roundNumber))
+            typeof data.currentRoundNumber === "number" &&
+            data.currentRoundNumber !== currentRound.roundNumber
           ) {
             void refreshRoundFromServer().catch(console.error);
           }

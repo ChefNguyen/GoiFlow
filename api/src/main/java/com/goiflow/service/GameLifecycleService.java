@@ -27,7 +27,11 @@ public class GameLifecycleService {
         GameSessionEntity session = gameSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 
-        if (session.getStatus() != GameSessionStatus.IN_PROGRESS) {
+        if (session.getStatus() == GameSessionStatus.WAITING) {
+            session.setStatus(GameSessionStatus.IN_PROGRESS);
+            session.setStartedAt(LocalDateTime.now());
+            session = gameSessionRepository.save(session);
+        } else if (session.getStatus() != GameSessionStatus.IN_PROGRESS) {
             throw new IllegalStateException("Session is not in progress");
         }
 
