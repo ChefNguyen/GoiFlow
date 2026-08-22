@@ -72,8 +72,8 @@ public class GameSessionService {
         GameSessionEntity session = gameSessionRepository.findByRoomCode(roomCode)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));
 
-        if (session.getStatus() != GameSessionStatus.WAITING) {
-            throw new IllegalStateException("Room is not accepting new players");
+        if (session.getStatus() == GameSessionStatus.FINISHED || session.getStatus() == GameSessionStatus.CANCELLED) {
+            throw new IllegalStateException("Phòng đấu này đã kết thúc hoặc không còn nhận người chơi mới");
         }
 
         if (userId != null) {

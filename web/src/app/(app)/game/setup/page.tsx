@@ -98,10 +98,11 @@ export default function GameSetupPage() {
       const sessionRes = await fetch(`/api/game/rooms/${roomCode.trim().toUpperCase()}`);
       const sessionData = await sessionRes.json();
 
-      sessionStorage.setItem("participantId", data.participantId);
-      sessionStorage.setItem("sessionId", sessionData.id);
+      const createdPid = data.id || data.participantId;
+      if (createdPid) sessionStorage.setItem("participantId", createdPid);
+      if (sessionData.id) sessionStorage.setItem("sessionId", sessionData.id);
 
-      router.push(`/game?session=${sessionData.id}&participant=${data.participantId}`);
+      router.push(`/game?session=${sessionData.id}&participant=${createdPid}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
