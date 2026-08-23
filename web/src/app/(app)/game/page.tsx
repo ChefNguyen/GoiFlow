@@ -404,14 +404,14 @@ export default function ActiveGamePage() {
   useEffect(() => {
     function interceptInternalNavigation(event: globalThis.MouseEvent) {
       if (
-        event.defaultPrevented ||
         event.button !== 0 ||
         event.metaKey ||
         event.ctrlKey ||
         event.shiftKey ||
         event.altKey ||
-        !roundRef.current ||
-        leavingGameRef.current
+        !sessionId ||
+        leavingGameRef.current ||
+        redirectingToResults.current
       ) {
         return;
       }
@@ -419,22 +419,56 @@ export default function ActiveGamePage() {
       const target = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null;
       if (!target || target.target === "_blank" || target.hasAttribute("download")) return;
 
-      const destination = new URL(target.href, window.location.href);
-      if (
-        destination.origin !== window.location.origin ||
-        (destination.pathname === window.location.pathname && destination.search === window.location.search)
-      ) {
-        return;
-      }
+      const href = target.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
 
-      event.preventDefault();
-      event.stopPropagation();
-      setIsLeaveDialogOpen(true);
+      // Do not intercept if clicking inside the leave dialog itself or the finish button on the side
+      if (target.closest('[role="dialog"]')) return;
+
+      try {
+        const destination = new URL(target.href, window.location.href);
+        if (
+          destination.origin !== window.location.origin ||
+          (destination.pathname === window.location.pathname && destination.search === window.location.search)
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        setIsLeaveDialogOpen(true);
+      } catch {
+        // invalid URL, ignore
+      }
     }
 
+    // Intercept in capture phase before Next.js Link or React bubbling handlers
     document.addEventListener("click", interceptInternalNavigation, true);
-    return () => document.removeEventListener("click", interceptInternalNavigation, true);
-  }, []);
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (sessionId && !leavingGameRef.current && !redirectingToResults.current) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    const handlePopState = () => {
+      if (sessionId && !leavingGameRef.current && !redirectingToResults.current) {
+        window.history.pushState(null, "", window.location.href);
+        setIsLeaveDialogOpen(true);
+      }
+    };
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      document.removeEventListener("click", interceptInternalNavigation, true);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [sessionId]);
 
   const refreshRoundFromServer = useCallback(async () => {
     if (!sessionId) return null;
@@ -876,7 +910,7 @@ export default function ActiveGamePage() {
     return () => window.clearInterval(timer);
   }, [round, loading, pendingAction, handleTimeout]);
 
-  const progressValue = round ? (round.roundNumber / maxRounds) * 100 : 0;
+  const progressValue = round ? Math.min(100, (round.roundNumber / Math.max(maxRounds, round.roundNumber)) * 100) : 0;
   const promptLength = round?.promptText.length ?? 0;
   const promptSizeClass =
     promptLength >= 4
@@ -933,7 +967,7 @@ export default function ActiveGamePage() {
 
             const rawAmHanViet = item.details?.amHanViet?.[0];
             const amHanVietLabel = rawAmHanViet && rawAmHanViet !== "—" && rawAmHanViet !== "-" ? rawAmHanViet : null;
-            const meaningViLabel = item.details?.meaningsVi?.[0] || item.rawAnswer || "—";
+            const meaningViLabel = item.details?.meaningsVi?.[0] || null;
             const showReading = Boolean(readingLabel && readingLabel.trim() !== item.promptText.trim());
 
             return (
@@ -982,7 +1016,7 @@ export default function ActiveGamePage() {
                   <div className="flex flex-col min-w-0 flex-1">
                     {/* Âm Hán Việt (only if present) */}
                     {amHanVietLabel && (
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)] truncate leading-none mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)] truncate leading-normal mb-0.5">
                         {amHanVietLabel}
                       </span>
                     )}
@@ -1000,10 +1034,12 @@ export default function ActiveGamePage() {
                       )}
                     </div>
 
-                    {/* Nghĩa tiếng Việt (giữ nguyên chữ thường tự nhiên) */}
-                    <span className="text-xs text-[var(--color-secondary)] mt-0.5 truncate" title={meaningViLabel}>
-                      {meaningViLabel}
-                    </span>
+                    {/* Nghĩa tiếng Việt (chỉ hiển thị khi có dữ liệu nghĩa tiếng Việt thực tế) */}
+                    {meaningViLabel && (
+                      <span className="text-xs text-[var(--color-secondary)] mt-0.5 truncate" title={meaningViLabel}>
+                        {meaningViLabel}
+                      </span>
+                    )}
                   </div>
 
                   {/* Zone 3: Avatar only (no name), right-aligned */}

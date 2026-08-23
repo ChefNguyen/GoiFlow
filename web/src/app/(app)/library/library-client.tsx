@@ -226,7 +226,7 @@ export function LibraryClient({
     : "—";
 
   return (
-    <div className="relative flex h-[calc(100vh-65px)] w-full overflow-hidden bg-[var(--color-surface)]">
+    <div className="relative flex h-[calc((100vh-65px)/0.9)] w-full overflow-hidden bg-[var(--color-surface)]" style={{ zoom: 0.9 }}>
       {/* 1. Left Sidebar: Filters */}
       <aside className="w-full md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-[var(--color-outline-variant)] bg-[var(--color-surface)] p-6 md:p-8 flex flex-col justify-between overflow-y-auto">
         <div className="space-y-8">

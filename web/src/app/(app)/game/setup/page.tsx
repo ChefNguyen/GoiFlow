@@ -122,7 +122,7 @@ export default function GameSetupPage() {
   }
 
   return (
-    <main className="flex-grow min-h-[calc(100vh-65px)] flex items-center justify-center px-6 py-12">
+    <main className="flex-grow min-h-[calc(100vh-65px)] flex items-center justify-center px-6 py-12" style={{ zoom: 0.9 }}>
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
         {/* Left Side: Conceptual Anchor (Vertically Centered) */}
         <div className="lg:col-span-5 hidden lg:flex flex-col justify-center space-y-8">
