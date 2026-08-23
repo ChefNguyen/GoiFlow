@@ -228,7 +228,7 @@ export default function ResultsPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-12">
+    <main className="min-h-[calc(100vh-65px)] bg-[var(--color-surface)] px-6 py-12" style={{ zoom: 0.9 }}>
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center">
         <header className="mb-10 text-center">
           <h1 className="mb-2 font-[family-name:var(--font-headline)] text-4xl font-bold uppercase tracking-tight text-[var(--color-primary)] md:text-5xl">
