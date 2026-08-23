@@ -684,7 +684,7 @@ export default function ActiveGamePage() {
             rawAnswer: answer,
             isCorrect: true,
             participantId,
-            participantName: currentParticipantName || "You",
+            participantName: currentParticipantName || authSession?.user?.name || "Player",
             participantAvatarUrl: currentAvatar,
             vocabularyEntryId,
             details,
@@ -710,7 +710,7 @@ export default function ActiveGamePage() {
               rawAnswer: answer,
               isCorrect: false,
               participantId,
-              participantName: currentParticipantName || "You",
+              participantName: currentParticipantName || authSession?.user?.name || "Player",
               participantAvatarUrl: currentAvatar,
               vocabularyEntryId: round.vocabularyEntryId,
               details: undefined,
@@ -731,7 +731,7 @@ export default function ActiveGamePage() {
               rawAnswer: answer,
               isCorrect: false,
               participantId,
-              participantName: currentParticipantName || "You",
+              participantName: currentParticipantName || authSession?.user?.name || "Player",
               participantAvatarUrl: currentAvatar,
               vocabularyEntryId,
               details,
@@ -815,7 +815,7 @@ export default function ActiveGamePage() {
               rawAnswer: reasonLabel,
               isCorrect: false,
               participantId,
-              participantName: currentParticipantName || "You",
+              participantName: currentParticipantName || authSession?.user?.name || "Player",
               participantAvatarUrl: currentAvatar,
               vocabularyEntryId,
               details,
@@ -925,65 +925,96 @@ export default function ActiveGamePage() {
               "—";
             const tertiaryLabel = item.details?.meaningsVi?.[0] || item.rawAnswer || "—";
             const isUserSelf = Boolean(participantId && item.participantId === participantId);
-            const displayNameToShow =
-              item.participantName && item.participantName !== "Player"
-                ? item.participantName
-                : (isUserSelf ? (currentParticipantName || authSession?.user?.name || "Player") : (item.participantName || "Player"));
+            const rawName = item.participantName;
+            const isGenericName = !rawName || rawName.toLowerCase() === "you" || rawName === "Player";
+            const displayNameToShow = isGenericName
+              ? (currentParticipantName || authSession?.user?.name || "Player")
+              : rawName;
+
+            const rawAmHanViet = item.details?.amHanViet?.[0];
+            const amHanVietLabel = rawAmHanViet && rawAmHanViet !== "—" && rawAmHanViet !== "-" ? rawAmHanViet : null;
+            const meaningViLabel = item.details?.meaningsVi?.[0] || item.rawAnswer || "—";
+            const showReading = Boolean(readingLabel && readingLabel.trim() !== item.promptText.trim());
 
             return (
               <div
                 key={`${item.promptText}-${item.id || index}`}
-                className="border-b border-[var(--color-outline-variant)] p-3.5 transition-none hover:bg-[var(--color-surface-container)]"
+                className="border-b border-[var(--color-outline-variant)] px-4 py-3 transition-colors hover:bg-[var(--color-surface-container-lowest)]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  {/* Left Column: Kanji Prompt & Vocabulary Details */}
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="font-[family-name:var(--font-headline)] text-2xl font-bold leading-tight text-[var(--color-primary)]">
-                      {item.promptText}
-                    </span>
-                    {item.details && (
-                      <>
-                        <span className="mt-1 block text-xs text-[var(--color-secondary)]">{readingLabel}</span>
-                        <span className="mt-0.5 block text-xs text-[var(--color-secondary)] line-clamp-1">{tertiaryLabel}</span>
-                      </>
+                <div className="flex items-center gap-3">
+
+                  {/* Zone 1: Status Icon Stamp — snug bold vector SVG in 14x14px box */}
+                  <div
+                    className={`shrink-0 flex items-center justify-center w-[14px] h-[14px] ${
+                      item.isCorrect
+                        ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] shadow-sm"
+                        : "border border-[var(--color-outline)] bg-[var(--color-surface-container-low)] text-[var(--color-secondary)]"
+                    }`}
+                    aria-label={item.isCorrect ? "Correct answer" : "Incorrect or skipped answer"}
+                  >
+                    {item.isCorrect ? (
+                      <svg
+                        className="w-[10px] h-[10px]"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3.0"
+                        strokeLinecap="square"
+                        strokeLinejoin="miter"
+                      >
+                        <path d="M3 8.5L6.5 12L13 4" />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-[8.5px] h-[8.5px]"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.8"
+                        strokeLinecap="square"
+                      >
+                        <path d="M3.5 3.5L12.5 12.5M12.5 3.5L3.5 12.5" />
+                      </svg>
                     )}
                   </div>
 
-                  {/* Right Column: Submitter (Avatar + Name), Status Badge, Âm Hán Việt */}
-                  <div className="flex flex-col items-end shrink-0 max-w-[140px]">
-                    {/* Top right row: Avatar + Name + Check/Cross badge */}
-                    <div className="flex items-center gap-1.5 justify-end">
-                      <UserAvatarBox
-                        avatarUrl={item.participantAvatarUrl || (isUserSelf ? currentUserAvatar : null)}
-                        displayName={displayNameToShow}
-                        size="sm"
-                      />
-                      <span className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--color-secondary)] max-w-[70px]">
-                        {displayNameToShow}
+                  {/* Zone 2: Vocabulary block */}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    {/* Âm Hán Việt (only if present) */}
+                    {amHanVietLabel && (
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)] truncate leading-none mb-1">
+                        {amHanVietLabel}
                       </span>
-                      <div
-                        className={item.isCorrect
-                          ? "flex h-3.5 w-3.5 shrink-0 items-center justify-center bg-[var(--color-primary)]"
-                          : "flex h-3.5 w-3.5 shrink-0 items-center justify-center border border-[var(--color-primary)] bg-transparent"}
-                        aria-label={item.isCorrect ? "Correct answer" : "Incorrect or skipped answer"}
-                      >
-                        {item.isCorrect ? (
-                          <span className="material-symbols-outlined text-[9px] font-bold text-[var(--color-on-primary)]">
-                            check
-                          </span>
-                        ) : (
-                          <span className="material-symbols-outlined text-[9px] font-bold text-[var(--color-primary)]">
-                            close
-                          </span>
-                        )}
-                      </div>
+                    )}
+
+                    {/* Kanji + Hiragana with Sharp Square Bullet separator - Vertically Centered */}
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="font-[family-name:var(--font-headline)] text-2xl font-bold leading-tight text-[var(--color-primary)]">
+                        {item.promptText}
+                      </span>
+                      {showReading && (
+                        <span className="inline-flex items-center gap-2 text-[15px] font-medium tracking-wide text-[var(--color-primary)]/85 shrink-0">
+                          <span className="inline-block w-[3.5px] h-[3.5px] bg-[var(--color-outline)] shrink-0" />
+                          <span>{readingLabel}</span>
+                        </span>
+                      )}
                     </div>
 
-                    {/* Bottom right: Âm Hán Việt / Reading */}
-                    <span className="mt-2 text-xs font-bold uppercase tracking-wider text-[var(--color-primary)] text-right truncate max-w-full">
-                      {secondaryLabel}
+                    {/* Nghĩa tiếng Việt (giữ nguyên chữ thường tự nhiên) */}
+                    <span className="text-xs text-[var(--color-secondary)] mt-0.5 truncate" title={meaningViLabel}>
+                      {meaningViLabel}
                     </span>
                   </div>
+
+                  {/* Zone 3: Avatar only (no name), right-aligned */}
+                  <div className="shrink-0 self-center">
+                    <UserAvatarBox
+                      avatarUrl={item.participantAvatarUrl || (isUserSelf ? currentUserAvatar : null)}
+                      displayName={displayNameToShow}
+                      size="sm"
+                    />
+                  </div>
+
                 </div>
               </div>
             );
