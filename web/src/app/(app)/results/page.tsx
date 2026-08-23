@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type ResultEntry = {
   rank: number;
   participantId: string;
   displayName: string;
+  avatarUrl?: string | null;
   totalScore: number;
   correctCount: number;
   averageResponseMs?: number;
@@ -26,12 +29,62 @@ type SessionState = {
   participants: Array<{
     id: string;
     displayName: string;
+    avatarUrl?: string | null;
     role: string;
+  }>;
+  standings?: Array<{
+    participantId: string;
+    displayName: string;
+    avatarUrl?: string | null;
+    totalScore: number;
+    correctCount: number;
+    rank: number;
   }>;
 };
 
+function UserAvatarBox({
+  avatarUrl,
+  displayName,
+  size = "md",
+  className = "",
+}: {
+  avatarUrl?: string | null;
+  displayName?: string | null;
+  size?: "sm" | "md" | "lg" | "xl";
+  className?: string;
+}) {
+  const initial = (displayName || "U").trim().charAt(0).toUpperCase();
+  const sizeMap = {
+    sm: "h-5 w-5 text-[9px]",
+    md: "h-7 w-7 text-[10px]",
+    lg: "h-10 w-10 text-xs",
+    xl: "h-12 w-12 text-sm",
+  };
+  const sizeClass = sizeMap[size];
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={displayName || "Player"}
+        className={`${sizeClass} rounded-none object-cover border border-[var(--color-primary)] shrink-0 ${className}`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`flex ${sizeClass} shrink-0 items-center justify-center border border-[var(--color-primary)] bg-[var(--color-primary)] font-bold text-[var(--color-on-primary)] rounded-none select-none ${className}`}
+    >
+      {initial}
+    </div>
+  );
+}
+
 export default function ResultsPage() {
   const router = useRouter();
+  const { data: authSession } = useSession();
+  const currentUserAvatar = authSession?.user?.image ?? null;
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
   const participantId = searchParams.get("participant");
@@ -74,13 +127,16 @@ export default function ResultsPage() {
 
         if (!cancelled) {
           const participants = Array.isArray(sessionData.participants) ? sessionData.participants : [];
+          const standings = Array.isArray(sessionData.standings) ? sessionData.standings : [];
           const rawResults = Array.isArray(resultsData) ? resultsData : [];
           const mappedResults: ResultEntry[] = rawResults.map((entry: any) => {
             const p = participants.find((part: any) => part.id === entry.participantId);
+            const s = standings.find((st: any) => st.participantId === entry.participantId);
             return {
               rank: entry.rank ?? 1,
               participantId: entry.participantId,
               displayName: entry.displayName || p?.displayName || "Player",
+              avatarUrl: entry.avatarUrl || s?.avatarUrl || p?.avatarUrl || null,
               totalScore: entry.totalScore ?? 0,
               correctCount: entry.correctCount ?? 0,
               averageResponseMs: entry.averageResponseMs,
@@ -197,7 +253,7 @@ export default function ResultsPage() {
 
         {!loading && !displayError && results.length > 0 && (
           <>
-            <section className="mb-16 flex w-full max-w-2xl items-end justify-center gap-4 md:gap-6 pt-4">
+            <section className="mb-16 flex w-full max-w-2xl items-end justify-center gap-6 md:gap-8 pt-6">
               {podiumOrder.map((entry) => {
                 const slot = podiumSlotByRank[entry.rank] || podiumSlotByRank[3];
                 const isCurrentParticipant = entry.participantId === participantId;
@@ -208,27 +264,60 @@ export default function ResultsPage() {
                     key={entry.participantId}
                     className={`flex flex-1 flex-col items-center ${slot.outerClassName}`}
                   >
-                    <div className="flex flex-col items-center justify-end pb-3 text-center min-h-[90px]">
+                    {/* Header above podium block with generous, elegant breathing room */}
+                    <div className="flex flex-col items-center justify-end pb-4 text-center w-full">
+                      {/* Crown / Rank Indicator (Calligrapher Minimalist Ink Style) */}
                       {isFirst ? (
-                        <span
-                          className="material-symbols-outlined mb-1 text-3xl text-[var(--color-primary)]"
-                          style={{ fontVariationSettings: '"FILL" 1' }}
-                          aria-hidden="true"
-                        >
-                          workspace_premium
-                        </span>
+                        <div className="flex flex-col items-center mb-2">
+                          <Crown
+                            className="h-5 w-5 text-[var(--color-primary)] fill-[var(--color-primary)] transition-transform hover:scale-110"
+                            strokeWidth={1.5}
+                            aria-label="Champion Crown"
+                          />
+                        </div>
                       ) : (
-                        <div className="h-7 w-7 mb-1" />
+                        <div className="h-5 mb-2 flex items-center justify-center">
+                          <span className="font-[family-name:var(--font-label)] text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-secondary)]">
+                            NO. {entry.rank}
+                          </span>
+                        </div>
                       )}
-                      <span
-                        className={`block truncate max-w-[140px] md:max-w-[180px] font-[family-name:var(--font-headline)] font-bold text-[var(--color-primary)] ${slot.nameClassName} ${isCurrentParticipant ? "underline" : ""}`}
-                      >
-                        {entry.displayName}
-                      </span>
-                      <span className="block font-[family-name:var(--font-body)] text-xs font-semibold uppercase tracking-wider text-[var(--color-secondary)]">
+
+                      {/* Avatar with Calligrapher seal border for 1st place */}
+                      {isFirst ? (
+                        <div className="p-0.5 border border-[var(--color-primary)] bg-[var(--color-surface)] shadow-sm">
+                          <UserAvatarBox
+                            avatarUrl={entry.avatarUrl || (isCurrentParticipant ? currentUserAvatar : null)}
+                            displayName={entry.displayName}
+                            size="xl"
+                          />
+                        </div>
+                      ) : (
+                        <UserAvatarBox
+                          avatarUrl={entry.avatarUrl || (isCurrentParticipant ? currentUserAvatar : null)}
+                          displayName={entry.displayName}
+                          size="lg"
+                          className="shadow-sm"
+                        />
+                      )}
+
+                      {/* Name with clean typography */}
+                      <div className="mt-2.5 flex items-center justify-center gap-1.5 max-w-full px-1">
+                        <span
+                          className={`block truncate font-[family-name:var(--font-headline)] font-bold text-[var(--color-primary)] ${slot.nameClassName}`}
+                          title={entry.displayName}
+                        >
+                          {entry.displayName}
+                        </span>
+                      </div>
+
+                      {/* Score */}
+                      <span className="mt-0.5 block font-[family-name:var(--font-label)] text-xs font-semibold uppercase tracking-wider text-[var(--color-secondary)]">
                         {entry.totalScore.toLocaleString()} pts
                       </span>
                     </div>
+
+                    {/* Podium block */}
                     <div
                       className={`flex w-full items-center justify-center border ${slot.heightClassName} ${slot.barClassName}`}
                     >
@@ -280,15 +369,24 @@ export default function ResultsPage() {
                           >
                             {String(entry.rank).padStart(2, "0")}
                           </td>
-                          <td
-                            className={`px-4 py-5 ${isCurrentParticipant ? "font-bold text-[var(--color-primary)]" : "text-[var(--color-primary)]"}`}
-                          >
-                            {entry.displayName}{" "}
-                            {isCurrentParticipant && (
-                              <span className="text-xs text-[var(--color-secondary)]">
-                                (you)
-                              </span>
-                            )}
+                          <td className="px-4 py-4 text-[var(--color-primary)]">
+                            <div className="flex items-center gap-3">
+                              <UserAvatarBox
+                                avatarUrl={entry.avatarUrl || (isCurrentParticipant ? currentUserAvatar : null)}
+                                displayName={entry.displayName}
+                                size="md"
+                              />
+                              <div className="flex items-center gap-2">
+                                <span className={`font-semibold ${isCurrentParticipant ? "font-bold" : ""}`}>
+                                  {entry.displayName}
+                                </span>
+                                {isCurrentParticipant && (
+                                  <span className="px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider bg-[var(--color-primary)] text-[var(--color-on-primary)] rounded">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </td>
                           <td className="px-4 py-5 text-right font-medium text-[var(--color-on-surface)]">
                             {entry.totalScore.toLocaleString()}

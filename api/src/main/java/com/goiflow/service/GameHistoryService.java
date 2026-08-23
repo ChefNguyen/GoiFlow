@@ -23,6 +23,7 @@ public class GameHistoryService {
     private final GameSubmissionRepository gameSubmissionRepository;
     private final GameParticipantRepository gameParticipantRepository;
     private final VocabularyEntryRepository vocabularyEntryRepository;
+    private final UserRepository userRepository;
     private final ContentSelectionService contentSelectionService;
 
     @Transactional(readOnly = true)
@@ -90,7 +91,7 @@ public class GameHistoryService {
                 vocabularyEntryRepository.findAllById(vocabIds).stream()
                         .collect(Collectors.toMap(VocabularyEntryEntity::getId, v -> v, (a, b) -> a));
 
-        // 5. Collect & Batch fetch participants
+        // 5. Collect & Batch fetch participants & their user avatars
         Set<String> participantIds = allSubs.stream()
                 .map(GameSubmissionEntity::getParticipantId)
                 .filter(Objects::nonNull)
@@ -98,6 +99,14 @@ public class GameHistoryService {
         Map<String, GameParticipantEntity> participantMap = participantIds.isEmpty() ? Collections.emptyMap() :
                 gameParticipantRepository.findAllById(participantIds).stream()
                         .collect(Collectors.toMap(GameParticipantEntity::getId, p -> p, (a, b) -> a));
+
+        Set<String> userIds = participantMap.values().stream()
+                .map(GameParticipantEntity::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, com.goiflow.entity.auth.UserEntity> userMap = userIds.isEmpty() ? Collections.emptyMap() :
+                userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(com.goiflow.entity.auth.UserEntity::getId, u -> u, (a, b) -> a));
 
         // 6. In-memory assembly
         List<Map<String, Object>> historyList = new ArrayList<>();
@@ -124,11 +133,22 @@ public class GameHistoryService {
                     item.put("attemptCount", sub.getAttemptCount() != null ? sub.getAttemptCount() : 1);
 
                     String participantName = "Player";
+                    String participantAvatarUrl = null;
                     GameParticipantEntity p = participantMap.get(sub.getParticipantId());
-                    if (p != null && p.getDisplayName() != null && !p.getDisplayName().isBlank()) {
-                        participantName = p.getDisplayName();
+                    if (p != null) {
+                        if (p.getDisplayName() != null && !p.getDisplayName().isBlank()) {
+                            participantName = p.getDisplayName();
+                        }
+                        if (p.getUserId() != null) {
+                            com.goiflow.entity.auth.UserEntity u = userMap.get(p.getUserId());
+                            if (u != null) {
+                                participantAvatarUrl = u.getImage();
+                            }
+                        }
                     }
+                    item.put("participantId", sub.getParticipantId());
                     item.put("participantName", participantName);
+                    item.put("participantAvatarUrl", participantAvatarUrl);
 
                     String submittedAt = LocalDateTime.now().toString();
                     if (sub.getSubmittedAt() != null) {
@@ -159,7 +179,9 @@ public class GameHistoryService {
                 item.put("rawAnswer", "—");
                 item.put("isCorrect", false);
                 item.put("attemptCount", 0);
-                item.put("participantName", "Player");
+                item.put("participantId", null);
+                item.put("participantName", "—");
+                item.put("participantAvatarUrl", null);
 
                 String submittedAt = LocalDateTime.now().toString();
                 if (r.getResolvedAt() != null) {

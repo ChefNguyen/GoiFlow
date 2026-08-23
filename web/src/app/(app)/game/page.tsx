@@ -25,6 +25,7 @@ type RoundState = {
 type LeaderboardEntry = {
   participantId: string;
   displayName: string;
+  avatarUrl?: string | null;
   totalScore: number;
   correctCount: number;
   rank: number;
@@ -41,9 +42,13 @@ type VocabularyHistoryDetails = {
 };
 
 type HistoryItem = {
+  id?: string;
   promptText: string;
   rawAnswer: string;
   isCorrect: boolean;
+  participantId?: string | null;
+  participantName?: string | null;
+  participantAvatarUrl?: string | null;
   vocabularyEntryId?: string | null;
   details?: VocabularyHistoryDetails;
 };
@@ -63,14 +68,16 @@ type SessionResponse = {
   isHost?: boolean;
   timePerPromptSeconds?: number;
   maxRounds?: number;
-  participants?: Array<{ id: string; displayName: string }>;
+  participants?: Array<{ id: string; displayName: string; avatarUrl?: string | null; role?: string }>;
   standings?: Array<{
     participantId: string;
     displayName: string;
+    avatarUrl?: string | null;
     totalScore: number;
     correctCount: number;
     rank: number;
   }>;
+  history?: HistoryItem[];
 };
 
 type RoundResponse = Partial<RoundState> & {
@@ -85,8 +92,40 @@ function isRoundState(value: RoundResponse): value is RoundState {
   return Boolean(value.roundId && value.roundNumber && value.promptText && value.promptType && value.startedAt);
 }
 
+function UserAvatarBox({
+  avatarUrl,
+  displayName,
+  size = "md",
+}: {
+  avatarUrl?: string | null;
+  displayName?: string | null;
+  size?: "sm" | "md";
+}) {
+  const initial = (displayName || "U").trim().charAt(0).toUpperCase();
+  const sizeClass = size === "sm" ? "h-5 w-5 text-[9px]" : "h-7 w-7 text-[10px]";
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={displayName || "Player"}
+        className={`${sizeClass} rounded-none object-cover border border-[var(--color-primary)] shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`flex ${sizeClass} shrink-0 items-center justify-center border border-[var(--color-primary)] bg-[var(--color-primary)] font-bold text-[var(--color-on-primary)] rounded-none select-none`}
+    >
+      {initial}
+    </div>
+  );
+}
+
 export default function ActiveGamePage() {
-  const { status } = useSession();
+  const { data: authSession, status } = useSession();
+  const currentUserAvatar = authSession?.user?.image ?? null;
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -269,25 +308,31 @@ export default function ActiveGamePage() {
       setLeaderboard(
         standings.map((entry) => ({
           ...entry,
+          avatarUrl: entry.avatarUrl ?? null,
           active: entry.participantId === pid,
         })),
       );
-      return;
+    } else {
+      setLeaderboard((prevLeaderboard) =>
+        participants.map((participant, index) => {
+          const existing = prevLeaderboard.find((p) => p.participantId === participant.id);
+          return {
+            participantId: participant.id,
+            displayName: participant.displayName,
+            avatarUrl: participant.avatarUrl ?? null,
+            totalScore: existing?.totalScore ?? 0,
+            correctCount: existing?.correctCount ?? 0,
+            rank: index + 1,
+            active: participant.id === pid,
+          };
+        })
+      );
     }
 
-    setLeaderboard((prevLeaderboard) =>
-      participants.map((participant, index) => {
-        const existing = prevLeaderboard.find((p) => p.participantId === participant.id);
-        return {
-          participantId: participant.id,
-          displayName: participant.displayName,
-          totalScore: existing?.totalScore ?? 0,
-          correctCount: existing?.correctCount ?? 0,
-          rank: index + 1,
-          active: participant.id === pid,
-        };
-      })
-    );
+    // Synchronize global Word History from server across all participants
+    if (Array.isArray(data.history) && data.history.length > 0) {
+      setHistory(data.history);
+    }
   }, [participantId]);
 
   const hydrateSession = useCallback(async () => {
@@ -631,16 +676,20 @@ export default function ActiveGamePage() {
 
         const vocabularyEntryId = data.vocabularyEntryId ?? round.vocabularyEntryId;
         const details = await fetchVocabularyHistoryDetails(vocabularyEntryId, data.details ?? undefined);
+        const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
 
         setHistory((prev) => [
           {
             promptText: round.promptText,
             rawAnswer: answer,
             isCorrect: true,
+            participantId,
+            participantName: currentParticipantName || "You",
+            participantAvatarUrl: currentAvatar,
             vocabularyEntryId,
             details,
           },
-          ...prev.slice(0, 19),
+          ...prev.slice(0, 29),
         ]);
 
         setAnswer("");
@@ -650,6 +699,7 @@ export default function ActiveGamePage() {
         await hydrateSession();
       } else {
         // Incorrect answer
+        const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
         if (currentAttemptNumber < 3) {
           setAttempts(currentAttemptNumber);
 
@@ -659,10 +709,13 @@ export default function ActiveGamePage() {
               promptText: round.promptText,
               rawAnswer: answer,
               isCorrect: false,
+              participantId,
+              participantName: currentParticipantName || "You",
+              participantAvatarUrl: currentAvatar,
               vocabularyEntryId: round.vocabularyEntryId,
               details: undefined,
             },
-            ...prev.slice(0, 19),
+            ...prev.slice(0, 29),
           ]);
 
           setAnswer("");
@@ -677,10 +730,13 @@ export default function ActiveGamePage() {
               promptText: round.promptText,
               rawAnswer: answer,
               isCorrect: false,
+              participantId,
+              participantName: currentParticipantName || "You",
+              participantAvatarUrl: currentAvatar,
               vocabularyEntryId,
               details,
             },
-            ...prev.slice(0, 19),
+            ...prev.slice(0, 29),
           ]);
 
           setAnswer("");
@@ -751,16 +807,20 @@ export default function ActiveGamePage() {
             vocabularyEntryId,
             data.skippedRoundDetails.details
           );
+          const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
 
           setHistory((prev) => [
             {
               promptText: data.skippedRoundDetails.promptText,
               rawAnswer: reasonLabel,
               isCorrect: false,
+              participantId,
+              participantName: currentParticipantName || "You",
+              participantAvatarUrl: currentAvatar,
               vocabularyEntryId,
               details,
             },
-            ...prev.slice(0, 19),
+            ...prev.slice(0, 29),
           ]);
         }
 
@@ -864,42 +924,67 @@ export default function ActiveGamePage() {
               item.rawAnswer ||
               "—";
             const tertiaryLabel = item.details?.meaningsVi?.[0] || item.rawAnswer || "—";
+            const isUserSelf = Boolean(participantId && item.participantId === participantId);
+            const displayNameToShow =
+              item.participantName && item.participantName !== "Player"
+                ? item.participantName
+                : (isUserSelf ? (currentParticipantName || authSession?.user?.name || "Player") : (item.participantName || "Player"));
 
             return (
               <div
-                key={`${item.promptText}-${index}`}
+                key={`${item.promptText}-${item.id || index}`}
                 className="border-b border-[var(--color-outline-variant)] p-3.5 transition-none hover:bg-[var(--color-surface-container)]"
               >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="font-[family-name:var(--font-headline)] text-2xl font-bold leading-none text-[var(--color-primary)]">
-                    {item.promptText}
-                  </span>
-                  <div
-                    className={item.isCorrect
-                      ? "flex h-5 w-5 shrink-0 items-center justify-center bg-[var(--color-primary)]"
-                      : "flex h-5 w-5 shrink-0 items-center justify-center border-2 border-[var(--color-primary)] bg-transparent"}
-                    aria-label={item.isCorrect ? "Correct answer" : "Incorrect or skipped answer"}
-                  >
-                    {item.isCorrect ? (
-                      <span className="material-symbols-outlined text-[12px] font-bold text-[var(--color-on-primary)]">
-                        check
-                      </span>
-                    ) : (
-                      <span className="material-symbols-outlined text-[12px] font-bold text-[var(--color-primary)]">
-                        close
-                      </span>
+                <div className="flex items-start justify-between gap-3">
+                  {/* Left Column: Kanji Prompt & Vocabulary Details */}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="font-[family-name:var(--font-headline)] text-2xl font-bold leading-tight text-[var(--color-primary)]">
+                      {item.promptText}
+                    </span>
+                    {item.details && (
+                      <>
+                        <span className="mt-1 block text-xs text-[var(--color-secondary)]">{readingLabel}</span>
+                        <span className="mt-0.5 block text-xs text-[var(--color-secondary)] line-clamp-1">{tertiaryLabel}</span>
+                      </>
                     )}
                   </div>
+
+                  {/* Right Column: Submitter (Avatar + Name), Status Badge, Âm Hán Việt */}
+                  <div className="flex flex-col items-end shrink-0 max-w-[140px]">
+                    {/* Top right row: Avatar + Name + Check/Cross badge */}
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <UserAvatarBox
+                        avatarUrl={item.participantAvatarUrl || (isUserSelf ? currentUserAvatar : null)}
+                        displayName={displayNameToShow}
+                        size="sm"
+                      />
+                      <span className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--color-secondary)] max-w-[70px]">
+                        {displayNameToShow}
+                      </span>
+                      <div
+                        className={item.isCorrect
+                          ? "flex h-3.5 w-3.5 shrink-0 items-center justify-center bg-[var(--color-primary)]"
+                          : "flex h-3.5 w-3.5 shrink-0 items-center justify-center border border-[var(--color-primary)] bg-transparent"}
+                        aria-label={item.isCorrect ? "Correct answer" : "Incorrect or skipped answer"}
+                      >
+                        {item.isCorrect ? (
+                          <span className="material-symbols-outlined text-[9px] font-bold text-[var(--color-on-primary)]">
+                            check
+                          </span>
+                        ) : (
+                          <span className="material-symbols-outlined text-[9px] font-bold text-[var(--color-primary)]">
+                            close
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom right: Âm Hán Việt / Reading */}
+                    <span className="mt-2 text-xs font-bold uppercase tracking-wider text-[var(--color-primary)] text-right truncate max-w-full">
+                      {secondaryLabel}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-primary)]">
-                  {secondaryLabel}
-                </span>
-                {item.details && (
-                  <>
-                    <span className="mt-0.5 block text-xs text-[var(--color-secondary)]">{readingLabel}</span>
-                    <span className="mt-0.5 block text-xs text-[var(--color-secondary)] line-clamp-1">{tertiaryLabel}</span>
-                  </>
-                )}
               </div>
             );
           })}
@@ -1006,13 +1091,20 @@ export default function ActiveGamePage() {
         <div className="flex flex-1 flex-col overflow-y-auto scrollbar-subtle">
           {leaderboard.length === 0 ? (
             <div className="border-b border-[var(--color-outline-variant)] p-4">
-              <div className="flex flex-col">
-                <span className="font-[family-name:var(--font-headline)] text-lg font-bold text-[var(--color-primary)]">
-                  {currentParticipantName || "You"}
-                </span>
-                <span className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)]">
-                  Rank #1
-                </span>
+              <div className="flex items-center gap-3">
+                <UserAvatarBox
+                  avatarUrl={currentUserAvatar}
+                  displayName={currentParticipantName || authSession?.user?.name || "You"}
+                  size="md"
+                />
+                <div className="flex flex-col">
+                  <span className="font-[family-name:var(--font-headline)] text-base font-bold text-[var(--color-primary)]">
+                    {currentParticipantName || "You"}
+                  </span>
+                  <span className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)]">
+                    Rank #1
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
@@ -1023,15 +1115,31 @@ export default function ActiveGamePage() {
                   ? "flex items-center justify-between border-b border-[var(--color-outline-variant)] bg-[var(--color-surface-container-highest)] p-4"
                   : "flex items-center justify-between border-b border-[var(--color-outline-variant)] p-4 transition-none hover:bg-[var(--color-surface-container)]"}
               >
-                <div className="flex flex-col">
-                  <span className="font-[family-name:var(--font-headline)] text-lg font-bold text-[var(--color-primary)]">
-                    {entry.displayName}
-                  </span>
-                  <span className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)]">
-                    Rank #{entry.rank}
-                  </span>
+                <div className="flex items-center gap-3 min-w-0">
+                  <UserAvatarBox
+                    avatarUrl={entry.avatarUrl || (entry.active ? currentUserAvatar : null)}
+                    displayName={entry.displayName}
+                    size="md"
+                  />
+
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-[family-name:var(--font-headline)] text-base font-bold text-[var(--color-primary)] truncate">
+                      {entry.displayName}
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-secondary)]">
+                        Rank #{entry.rank}
+                      </span>
+                      {entry.active && (
+                        <span className="px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider bg-[var(--color-primary)] text-[var(--color-on-primary)] rounded">
+                          You
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end">
+
+                <div className="flex flex-col items-end shrink-0 pl-2">
                   <span className="text-lg font-bold text-[var(--color-primary)]">
                     {entry.totalScore}
                   </span>

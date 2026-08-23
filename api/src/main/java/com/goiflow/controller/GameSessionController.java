@@ -1,10 +1,12 @@
 package com.goiflow.controller;
 
+import com.goiflow.entity.auth.UserEntity;
 import com.goiflow.entity.game.GameParticipantEntity;
 import com.goiflow.entity.game.GameRoundEntity;
 import com.goiflow.entity.game.GameSessionEntity;
 import com.goiflow.entity.game.GameSubmissionEntity;
 import com.goiflow.repository.*;
+import com.goiflow.service.GameHistoryService;
 import com.goiflow.service.GameSessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/game/sessions")
@@ -23,6 +26,8 @@ public class GameSessionController {
     private final GameParticipantRepository gameParticipantRepository;
     private final GameRoundRepository gameRoundRepository;
     private final GameSubmissionRepository gameSubmissionRepository;
+    private final UserRepository userRepository;
+    private final GameHistoryService gameHistoryService;
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getSession(@PathVariable String id, Authentication auth) {
@@ -31,6 +36,15 @@ public class GameSessionController {
 
         List<GameParticipantEntity> participants = gameParticipantRepository.findByGameSessionId(id);
         List<GameRoundEntity> rounds = gameRoundRepository.findByGameSessionIdOrderByRoundNumberAsc(id);
+
+        // Batch fetch user avatars
+        Set<String> userIds = participants.stream()
+                .map(GameParticipantEntity::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, UserEntity> userMap = userIds.isEmpty() ? Collections.emptyMap() :
+                userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(UserEntity::getId, u -> u, (a, b) -> a));
 
         // Compute live standings per participant
         Map<String, Integer> scoreMap = new HashMap<>();
@@ -72,6 +86,13 @@ public class GameSessionController {
                     Map<String, Object> entry = new LinkedHashMap<>();
                     entry.put("participantId", p.getId());
                     entry.put("displayName", p.getDisplayName());
+                    entry.put("userId", p.getUserId());
+                    String avatarUrl = null;
+                    if (p.getUserId() != null) {
+                        UserEntity u = userMap.get(p.getUserId());
+                        if (u != null) avatarUrl = u.getImage();
+                    }
+                    entry.put("avatarUrl", avatarUrl);
                     entry.put("totalScore", scoreMap.getOrDefault(p.getId(), 0));
                     entry.put("correctCount", correctMap.getOrDefault(p.getId(), 0));
                     standings.add(entry);
@@ -87,6 +108,13 @@ public class GameSessionController {
             m.put("id", p.getId());
             m.put("displayName", p.getDisplayName());
             m.put("role", p.getRole());
+            m.put("userId", p.getUserId());
+            String avatarUrl = null;
+            if (p.getUserId() != null) {
+                UserEntity u = userMap.get(p.getUserId());
+                if (u != null) avatarUrl = u.getImage();
+            }
+            m.put("avatarUrl", avatarUrl);
             return m;
         }).toList();
 
@@ -105,6 +133,11 @@ public class GameSessionController {
         response.put("isHost", currentParticipantId != null && currentParticipantId.equals(session.getHostParticipantId()));
         response.put("participants", participantList);
         response.put("standings", standings);
+
+        // Include global synchronized room history
+        Map<String, Object> historyQuery = gameHistoryService.queryHistory(List.of(id), null, 30);
+        response.put("history", historyQuery.get("history"));
+
         response.put("startedAt", session.getStartedAt());
         response.put("finishedAt", session.getFinishedAt());
 
