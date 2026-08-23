@@ -168,6 +168,13 @@ public class GameHistoryService {
                     historyList.add(item);
                 }
             } else {
+                // Only include rounds with no submissions if they were explicitly resolved/skipped
+                // (i.e., they have a resolvedAt timestamp). Active live rounds (no submission yet)
+                // must NOT appear in history — they would falsely show as incorrect answers.
+                if (r.getResolvedAt() == null) {
+                    continue;
+                }
+
                 Map<String, Object> item = new HashMap<>();
                 item.put("id", "round_" + r.getId());
                 item.put("sessionId", session.getId());
@@ -183,15 +190,7 @@ public class GameHistoryService {
                 item.put("participantName", "—");
                 item.put("participantAvatarUrl", null);
 
-                String submittedAt = LocalDateTime.now().toString();
-                if (r.getResolvedAt() != null) {
-                    submittedAt = r.getResolvedAt().toString();
-                } else if (r.getCreatedAt() != null) {
-                    submittedAt = r.getCreatedAt().toString();
-                } else if (r.getStartedAt() != null) {
-                    submittedAt = r.getStartedAt().toString();
-                }
-                item.put("submittedAt", submittedAt);
+                item.put("submittedAt", r.getResolvedAt().toString());
                 item.put("vocabularyEntryId", r.getVocabularyEntryId());
 
                 if (vocab != null) {

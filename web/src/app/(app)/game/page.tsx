@@ -329,9 +329,37 @@ export default function ActiveGamePage() {
       );
     }
 
-    // Synchronize global Word History from server across all participants
+    // Synchronize global Word History from server across all participants.
+    // Smart merge: enrich server history items with avatar URLs from the known leaderboard,
+    // and avoid overwriting local real-time items for the current active round.
     if (Array.isArray(data.history) && data.history.length > 0) {
-      setHistory(data.history);
+      // Build a pid → avatarUrl map from the current leaderboard for avatar enrichment
+      setLeaderboard((prevLeaderboard) => {
+        const avatarByPid: Record<string, string | null> = {};
+        for (const entry of prevLeaderboard) {
+          avatarByPid[entry.participantId] = entry.avatarUrl ?? null;
+        }
+        // Also include participants from this session response
+        for (const p of (Array.isArray(data.participants) ? data.participants : [])) {
+          if (p.avatarUrl) avatarByPid[p.id] = p.avatarUrl;
+        }
+
+        setHistory((prevHistory) => {
+          const serverItems: HistoryItem[] = (data.history as HistoryItem[]).map((item) => ({
+            ...item,
+            // Enrich participantAvatarUrl from leaderboard when server doesn't have it
+            participantAvatarUrl: item.participantAvatarUrl ?? (item.participantId ? avatarByPid[item.participantId] ?? null : null),
+          }));
+
+          // Keep any local items that are not yet in server history (e.g. current round live submissions)
+          const serverIds = new Set(serverItems.map((i) => i.id).filter(Boolean));
+          const localOnly = prevHistory.filter((i) => i.id && !serverIds.has(i.id));
+
+          return [...localOnly, ...serverItems];
+        });
+
+        return prevLeaderboard;
+      });
     }
   }, [participantId]);
 
