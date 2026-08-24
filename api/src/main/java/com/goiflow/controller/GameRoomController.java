@@ -29,7 +29,7 @@ public class GameRoomController {
                 : (req.getDisplayName() != null && !req.getDisplayName().isBlank() ? req.getDisplayName() : "Host");
 
         GameSessionEntity session = gameSessionService.createRoom(
-                userId, hostName, req.getJlptLevel(), req.getTimePerPromptSeconds(), req.getMaxRounds(), req.getIsPrivate()
+                userId, hostName, req.getAvatarUrl(), req.getJlptLevel(), req.getTimePerPromptSeconds(), req.getMaxRounds(), req.getIsPrivate()
         );
         return ResponseEntity.ok(session);
     }
@@ -41,7 +41,7 @@ public class GameRoomController {
                 ? req.getDisplayName()
                 : "Player";
 
-        GameParticipantEntity participant = gameSessionService.joinRoom(req.getRoomCode(), userId, playerName);
+        GameParticipantEntity participant = gameSessionService.joinRoom(req.getRoomCode(), userId, playerName, req.getAvatarUrl());
         return ResponseEntity.ok(participant);
     }
 

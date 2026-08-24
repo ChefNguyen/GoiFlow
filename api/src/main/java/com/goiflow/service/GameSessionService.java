@@ -37,7 +37,22 @@ public class GameSessionService {
     }
 
     @Transactional
-    public GameSessionEntity createRoom(String userId, String displayName, JlptLevel jlptLevel, Integer timePerPromptSeconds, Integer maxRounds, Boolean isPrivate) {
+    public GameSessionEntity createRoom(String userId, String displayName, String avatarUrl, JlptLevel jlptLevel, Integer timePerPromptSeconds, Integer maxRounds, Boolean isPrivate) {
+        if (userId != null && !userId.isBlank()) {
+            UserEntity user = userRepository.findById(userId).orElseGet(() -> UserEntity.builder()
+                    .id(userId)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+            if (displayName != null && !displayName.isBlank()) {
+                user.setName(displayName);
+            }
+            if (avatarUrl != null && !avatarUrl.isBlank()) {
+                user.setImage(avatarUrl);
+            }
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+        }
+
         String roomCode = generateRoomCode();
         GameSessionEntity session = GameSessionEntity.builder()
                 .id(CuidUtils.generate())
@@ -68,7 +83,7 @@ public class GameSessionService {
     }
 
     @Transactional
-    public GameParticipantEntity joinRoom(String roomCode, String userId, String displayName) {
+    public GameParticipantEntity joinRoom(String roomCode, String userId, String displayName, String avatarUrl) {
         GameSessionEntity session = gameSessionRepository.findByRoomCode(roomCode)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));
 
@@ -76,9 +91,31 @@ public class GameSessionService {
             throw new IllegalStateException("Phòng đấu này đã kết thúc hoặc không còn nhận người chơi mới");
         }
 
+        if (userId != null && !userId.isBlank()) {
+            UserEntity user = userRepository.findById(userId).orElseGet(() -> UserEntity.builder()
+                    .id(userId)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+            if (displayName != null && !displayName.isBlank()) {
+                user.setName(displayName);
+            }
+            if (avatarUrl != null && !avatarUrl.isBlank()) {
+                user.setImage(avatarUrl);
+            }
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+        }
+
         if (userId != null) {
             var existing = gameParticipantRepository.findByGameSessionIdAndUserId(session.getId(), userId);
-            if (existing.isPresent()) return existing.get();
+            if (existing.isPresent()) {
+                GameParticipantEntity p = existing.get();
+                if (displayName != null && !displayName.isBlank()) {
+                    p.setDisplayName(displayName);
+                    return gameParticipantRepository.save(p);
+                }
+                return p;
+            }
         }
 
         GameParticipantEntity participant = GameParticipantEntity.builder()
