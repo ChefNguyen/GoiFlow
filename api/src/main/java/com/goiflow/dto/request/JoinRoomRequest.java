@@ -8,4 +8,6 @@ public class JoinRoomRequest {
     @NotBlank(message = "Room code is required")
     private String roomCode;
     private String displayName;
+    private String userId;
+    private String avatarUrl;
 }

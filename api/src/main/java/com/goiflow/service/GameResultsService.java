@@ -27,6 +27,11 @@ public class GameResultsService {
 
     @Transactional
     public List<Map<String, Object>> computeAndPersistResults(String sessionId) {
+        return computeAndPersistResults(sessionId, true);
+    }
+
+    @Transactional
+    public List<Map<String, Object>> computeAndPersistResults(String sessionId, boolean markFinished) {
         GameSessionEntity session = gameSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 
@@ -95,9 +100,11 @@ public class GameResultsService {
             responseList.add(map);
         }
 
-        session.setStatus(GameSessionStatus.FINISHED);
-        session.setFinishedAt(LocalDateTime.now());
-        gameSessionRepository.save(session);
+        if (markFinished) {
+            session.setStatus(GameSessionStatus.FINISHED);
+            session.setFinishedAt(LocalDateTime.now());
+            gameSessionRepository.save(session);
+        }
 
         return responseList;
     }
@@ -105,8 +112,13 @@ public class GameResultsService {
     @Transactional
     public List<Map<String, Object>> getResultsForSession(String sessionId) {
         List<GameResultEntity> results = gameResultRepository.findByGameSessionIdOrderByRankAsc(sessionId);
-        if (results.isEmpty()) {
-            return computeAndPersistResults(sessionId);
+        GameSessionEntity session = gameSessionRepository.findById(sessionId).orElse(null);
+        boolean isAlreadyFinished = session != null && session.getStatus() == GameSessionStatus.FINISHED;
+
+        // If the session is still active (e.g. non-host participant left early to view their score),
+        // compute intermediate standings WITHOUT marking the session FINISHED for the remaining players.
+        if (results.isEmpty() || !isAlreadyFinished) {
+            return computeAndPersistResults(sessionId, false);
         }
 
         List<Map<String, Object>> list = new ArrayList<>();

@@ -46,6 +46,8 @@ export default function GameSetupPage() {
           isPrivate,
           maxRounds: 10,
           hostDisplayName: displayName,
+          userId: session.user.id,
+          avatarUrl: session.user.image ?? null,
         }),
       });
       const data = await res.json();
@@ -89,6 +91,8 @@ export default function GameSetupPage() {
         body: JSON.stringify({
           roomCode: roomCode.trim().toUpperCase(),
           displayName: joinDisplayName,
+          userId: session.user.id,
+          avatarUrl: session.user.image ?? null,
         }),
       });
       const data = await res.json();

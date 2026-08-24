@@ -23,7 +23,7 @@ public class GameRoomController {
     @PostMapping
     public ResponseEntity<?> createRoom(@RequestBody(required = false) CreateRoomRequest req, Authentication auth) {
         if (req == null) req = new CreateRoomRequest();
-        String userId = auth != null ? auth.getName() : null;
+        String userId = auth != null ? auth.getName() : req.getUserId();
         String hostName = req.getHostDisplayName() != null && !req.getHostDisplayName().isBlank()
                 ? req.getHostDisplayName()
                 : (req.getDisplayName() != null && !req.getDisplayName().isBlank() ? req.getDisplayName() : "Host");
@@ -36,7 +36,7 @@ public class GameRoomController {
 
     @PostMapping("/join")
     public ResponseEntity<?> joinRoom(@Valid @RequestBody JoinRoomRequest req, Authentication auth) {
-        String userId = auth != null ? auth.getName() : null;
+        String userId = auth != null ? auth.getName() : req.getUserId();
         String playerName = req.getDisplayName() != null && !req.getDisplayName().isBlank()
                 ? req.getDisplayName()
                 : "Player";

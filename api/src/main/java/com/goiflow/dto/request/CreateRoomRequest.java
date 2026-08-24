@@ -11,4 +11,6 @@ public class CreateRoomRequest {
     private Boolean isPrivate = false;
     private String hostDisplayName;
     private String displayName;
+    private String userId;
+    private String avatarUrl;
 }

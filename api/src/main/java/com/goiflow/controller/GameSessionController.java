@@ -30,7 +30,12 @@ public class GameSessionController {
     private final GameHistoryService gameHistoryService;
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getSession(@PathVariable String id, Authentication auth) {
+    public ResponseEntity<?> getSession(
+            @PathVariable String id,
+            @RequestParam(required = false) String participantId,
+            @RequestParam(required = false) String userId,
+            Authentication auth
+    ) {
         GameSessionEntity session = gameSessionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 
@@ -66,9 +71,9 @@ public class GameSessionController {
         }
 
         // Resolve currentParticipantId for the requesting user
-        String requestingUserId = auth != null ? auth.getName() : null;
-        String currentParticipantId = null;
-        if (requestingUserId != null) {
+        String requestingUserId = auth != null ? auth.getName() : (userId != null && !userId.isBlank() ? userId : null);
+        String currentParticipantId = participantId != null && !participantId.isBlank() ? participantId : null;
+        if (currentParticipantId == null && requestingUserId != null) {
             currentParticipantId = participants.stream()
                     .filter(p -> requestingUserId.equals(p.getUserId()))
                     .map(GameParticipantEntity::getId)

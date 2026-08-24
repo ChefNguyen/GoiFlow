@@ -367,7 +367,12 @@ export default function ActiveGamePage() {
     if (!sessionId) return null;
 
     try {
-      const response = await fetch(`/api/game/sessions/${sessionId}`);
+      const pidParam =
+        participantId ||
+        searchParams.get("participant") ||
+        (typeof window !== "undefined" ? sessionStorage.getItem("participantId") : null);
+      const queryStr = pidParam ? `?participantId=${encodeURIComponent(pidParam)}` : "";
+      const response = await fetch(`/api/game/sessions/${sessionId}${queryStr}`);
       const data = (await response.json()) as SessionResponse & { hostParticipantId?: string };
 
       if (!response.ok) {
@@ -376,9 +381,7 @@ export default function ActiveGamePage() {
 
       const currentPid =
         data.currentParticipantId ||
-        searchParams.get("participant") ||
-        (typeof window !== "undefined" ? sessionStorage.getItem("participantId") : null) ||
-        participantId;
+        pidParam;
 
       if (currentPid) {
         setParticipantId(currentPid);
@@ -987,11 +990,13 @@ export default function ActiveGamePage() {
               "—";
             const tertiaryLabel = item.details?.meaningsVi?.[0] || item.rawAnswer || "—";
             const isUserSelf = Boolean(participantId && item.participantId === participantId);
-            const rawName = item.participantName;
+            const leaderboardEntry = item.participantId ? leaderboard.find((e) => e.participantId === item.participantId) : null;
+            const rawName = item.participantName || leaderboardEntry?.displayName;
             const isGenericName = !rawName || rawName.toLowerCase() === "you" || rawName === "Player";
             const displayNameToShow = isGenericName
-              ? (currentParticipantName || authSession?.user?.name || "Player")
+              ? (isUserSelf ? (currentParticipantName || authSession?.user?.name || "Player") : (leaderboardEntry?.displayName || "Player"))
               : rawName;
+            const avatarUrlToShow = item.participantAvatarUrl || leaderboardEntry?.avatarUrl || (isUserSelf ? currentUserAvatar : null);
 
             const rawAmHanViet = item.details?.amHanViet?.[0];
             const amHanVietLabel = rawAmHanViet && rawAmHanViet !== "—" && rawAmHanViet !== "-" ? rawAmHanViet : null;
@@ -1073,7 +1078,7 @@ export default function ActiveGamePage() {
                   {/* Zone 3: Avatar only (no name), right-aligned */}
                   <div className="shrink-0 self-center">
                     <UserAvatarBox
-                      avatarUrl={item.participantAvatarUrl || (isUserSelf ? currentUserAvatar : null)}
+                      avatarUrl={avatarUrlToShow}
                       displayName={displayNameToShow}
                       size="sm"
                     />
