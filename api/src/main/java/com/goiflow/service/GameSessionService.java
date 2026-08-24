@@ -38,19 +38,33 @@ public class GameSessionService {
 
     @Transactional
     public GameSessionEntity createRoom(String userId, String displayName, String avatarUrl, JlptLevel jlptLevel, Integer timePerPromptSeconds, Integer maxRounds, Boolean isPrivate) {
-        if (userId != null && !userId.isBlank()) {
-            UserEntity user = userRepository.findById(userId).orElseGet(() -> UserEntity.builder()
-                    .id(userId)
-                    .createdAt(LocalDateTime.now())
-                    .build());
-            if (displayName != null && !displayName.isBlank()) {
-                user.setName(displayName);
+        String effectiveUserId = (userId != null && !userId.isBlank()) ? userId.trim() : null;
+
+        if (effectiveUserId != null) {
+            try {
+                UserEntity user = userRepository.findById(effectiveUserId).orElse(null);
+                if (user == null) {
+                    user = UserEntity.builder()
+                            .id(effectiveUserId)
+                            .name(displayName)
+                            .image(avatarUrl)
+                            .createdAt(LocalDateTime.now())
+                            .updatedAt(LocalDateTime.now())
+                            .build();
+                } else {
+                    if (displayName != null && !displayName.isBlank()) {
+                        user.setName(displayName);
+                    }
+                    if (avatarUrl != null && !avatarUrl.isBlank()) {
+                        user.setImage(avatarUrl);
+                    }
+                    user.setUpdatedAt(LocalDateTime.now());
+                }
+                userRepository.saveAndFlush(user);
+            } catch (Exception e) {
+                // If user persistence fails, clear effectiveUserId so foreign key constraint is not violated
+                effectiveUserId = null;
             }
-            if (avatarUrl != null && !avatarUrl.isBlank()) {
-                user.setImage(avatarUrl);
-            }
-            user.setUpdatedAt(LocalDateTime.now());
-            userRepository.save(user);
         }
 
         String roomCode = generateRoomCode();
@@ -71,7 +85,7 @@ public class GameSessionService {
         GameParticipantEntity host = GameParticipantEntity.builder()
                 .id(CuidUtils.generate())
                 .gameSessionId(savedSession.getId())
-                .userId(userId)
+                .userId(effectiveUserId)
                 .displayName(displayName != null ? displayName : "Host")
                 .role(ParticipantRole.HOST)
                 .joinedAt(LocalDateTime.now())
@@ -91,23 +105,36 @@ public class GameSessionService {
             throw new IllegalStateException("Phòng đấu này đã kết thúc hoặc không còn nhận người chơi mới");
         }
 
-        if (userId != null && !userId.isBlank()) {
-            UserEntity user = userRepository.findById(userId).orElseGet(() -> UserEntity.builder()
-                    .id(userId)
-                    .createdAt(LocalDateTime.now())
-                    .build());
-            if (displayName != null && !displayName.isBlank()) {
-                user.setName(displayName);
+        String effectiveUserId = (userId != null && !userId.isBlank()) ? userId.trim() : null;
+
+        if (effectiveUserId != null) {
+            try {
+                UserEntity user = userRepository.findById(effectiveUserId).orElse(null);
+                if (user == null) {
+                    user = UserEntity.builder()
+                            .id(effectiveUserId)
+                            .name(displayName)
+                            .image(avatarUrl)
+                            .createdAt(LocalDateTime.now())
+                            .updatedAt(LocalDateTime.now())
+                            .build();
+                } else {
+                    if (displayName != null && !displayName.isBlank()) {
+                        user.setName(displayName);
+                    }
+                    if (avatarUrl != null && !avatarUrl.isBlank()) {
+                        user.setImage(avatarUrl);
+                    }
+                    user.setUpdatedAt(LocalDateTime.now());
+                }
+                userRepository.saveAndFlush(user);
+            } catch (Exception e) {
+                effectiveUserId = null;
             }
-            if (avatarUrl != null && !avatarUrl.isBlank()) {
-                user.setImage(avatarUrl);
-            }
-            user.setUpdatedAt(LocalDateTime.now());
-            userRepository.save(user);
         }
 
-        if (userId != null) {
-            var existing = gameParticipantRepository.findByGameSessionIdAndUserId(session.getId(), userId);
+        if (effectiveUserId != null) {
+            var existing = gameParticipantRepository.findByGameSessionIdAndUserId(session.getId(), effectiveUserId);
             if (existing.isPresent()) {
                 GameParticipantEntity p = existing.get();
                 if (displayName != null && !displayName.isBlank()) {
@@ -121,7 +148,7 @@ public class GameSessionService {
         GameParticipantEntity participant = GameParticipantEntity.builder()
                 .id(CuidUtils.generate())
                 .gameSessionId(session.getId())
-                .userId(userId)
+                .userId(effectiveUserId)
                 .displayName(displayName != null ? displayName : "Player")
                 .role(ParticipantRole.PLAYER)
                 .joinedAt(LocalDateTime.now())
