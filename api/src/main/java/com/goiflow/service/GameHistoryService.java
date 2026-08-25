@@ -120,6 +120,10 @@ public class GameHistoryService {
 
             if (!subs.isEmpty()) {
                 for (GameSubmissionEntity sub : subs) {
+                    boolean isCorrect = Boolean.TRUE.equals(sub.getIsCorrect());
+                    int attemptCount = sub.getAttemptCount() != null ? sub.getAttemptCount() : 1;
+                    boolean isRoundResolved = r.getResolvedAt() != null;
+
                     Map<String, Object> item = new HashMap<>();
                     item.put("id", sub.getId());
                     item.put("sessionId", session.getId());
@@ -129,8 +133,8 @@ public class GameHistoryService {
                     item.put("promptText", r.getPromptText() != null ? r.getPromptText() : "");
                     item.put("promptType", r.getPromptType() != null ? r.getPromptType().name() : "KANJI_TO_READING");
                     item.put("rawAnswer", sub.getRawAnswer() != null ? sub.getRawAnswer() : "—");
-                    item.put("isCorrect", Boolean.TRUE.equals(sub.getIsCorrect()));
-                    item.put("attemptCount", sub.getAttemptCount() != null ? sub.getAttemptCount() : 1);
+                    item.put("isCorrect", isCorrect);
+                    item.put("attemptCount", attemptCount);
 
                     String participantName = "Player";
                     String participantAvatarUrl = null;
@@ -161,7 +165,8 @@ public class GameHistoryService {
                     item.put("submittedAt", submittedAt);
                     item.put("vocabularyEntryId", r.getVocabularyEntryId());
 
-                    if (vocab != null) {
+                    // Only reveal vocabulary details if the answer was correct, or failed 3 times, or the round is resolved
+                    if (vocab != null && (isCorrect || attemptCount >= 3 || isRoundResolved)) {
                         item.put("details", contentSelectionService.toVocabularyHistoryDetails(vocab));
                     }
 

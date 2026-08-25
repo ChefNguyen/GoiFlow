@@ -768,9 +768,10 @@ export default function ActiveGamePage() {
         if (currentAttemptNumber < 3) {
           setAttempts(currentAttemptNumber);
 
-          // Record incorrect attempt to Word History (without revealing details yet)
+          // Record incorrect attempt to Word History (shows Kanji + typed answer, WITHOUT revealing details yet)
           setHistory((prev) => [
             {
+              id: data.submissionId || `sub_${Date.now()}`,
               promptText: round.promptText,
               rawAnswer: answer,
               isCorrect: false,
@@ -792,6 +793,7 @@ export default function ActiveGamePage() {
 
           setHistory((prev) => [
             {
+              id: data.submissionId || `sub_${Date.now()}`,
               promptText: round.promptText,
               rawAnswer: answer,
               isCorrect: false,
