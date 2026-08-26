@@ -172,14 +172,8 @@ public class GameHistoryService {
 
                     historyList.add(item);
                 }
-            } else {
-                // Only include rounds with no submissions if they were explicitly resolved/skipped
-                // (i.e., they have a resolvedAt timestamp). Active live rounds (no submission yet)
-                // must NOT appear in history — they would falsely show as incorrect answers.
-                if (r.getResolvedAt() == null) {
-                    continue;
-                }
-
+            } else if (r.getResolvedAt() != null) {
+                // Exactly when all participants have attempt = 0 (no submissions recorded for this resolved round)
                 Map<String, Object> item = new HashMap<>();
                 item.put("id", "round_" + r.getId());
                 item.put("sessionId", session.getId());
@@ -194,7 +188,6 @@ public class GameHistoryService {
                 item.put("participantId", null);
                 item.put("participantName", "—");
                 item.put("participantAvatarUrl", null);
-
                 item.put("submittedAt", r.getResolvedAt().toString());
                 item.put("vocabularyEntryId", r.getVocabularyEntryId());
 
@@ -206,11 +199,24 @@ public class GameHistoryService {
             }
         }
 
-        // Sort descending by submittedAt safely (most recent first)
+        // Sort descending by submittedAt, then by attemptCount DESC, then by id DESC as final tiebreaker.
+        // All three levels ensure fully deterministic ordering identical across all clients:
+        // - Level 1: submittedAt DESC (most recent first)
+        // - Level 2: attemptCount DESC (same-round: attempt 3 before attempt 2 before attempt 1)
+        // - Level 3: id DESC (cross-participant same-timestamp: stable, reproducible on all clients)
         historyList.sort((a, b) -> {
             String timeA = Objects.toString(a.get("submittedAt"), "");
             String timeB = Objects.toString(b.get("submittedAt"), "");
-            return timeB.compareTo(timeA);
+            int cmp = timeB.compareTo(timeA);
+            if (cmp != 0) return cmp;
+            int attA = a.get("attemptCount") instanceof Number n ? n.intValue() : 0;
+            int attB = b.get("attemptCount") instanceof Number n ? n.intValue() : 0;
+            cmp = Integer.compare(attB, attA);
+            if (cmp != 0) return cmp;
+            // Final tiebreak: id DESC for fully deterministic order across all clients
+            String idA = Objects.toString(a.get("id"), "");
+            String idB = Objects.toString(b.get("id"), "");
+            return idB.compareTo(idA);
         });
 
         if (historyList.size() > maxLimit) {

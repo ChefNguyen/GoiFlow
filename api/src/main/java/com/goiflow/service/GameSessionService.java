@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -165,6 +166,26 @@ public class GameSessionService {
         session.setStatus(GameSessionStatus.IN_PROGRESS);
         session.setStartedAt(LocalDateTime.now());
         return gameSessionRepository.save(session);
+    }
+
+    @Transactional
+    public void leaveSession(String sessionId, String participantId) {
+        GameSessionEntity session = gameSessionRepository.findById(sessionId).orElse(null);
+        if (session == null) return;
+
+        Optional<GameParticipantEntity> participantOpt = gameParticipantRepository.findById(participantId);
+        if (participantOpt.isPresent()) {
+            GameParticipantEntity participant = participantOpt.get();
+            // If the leaving participant is the HOST, conclude the session for everyone
+            if (participantId.equals(session.getHostParticipantId())) {
+                session.setStatus(GameSessionStatus.FINISHED);
+                session.setFinishedAt(LocalDateTime.now());
+                gameSessionRepository.save(session);
+            } else {
+                // Non-host guest leaving: remove participant so they are immediately cleared from study_session
+                gameParticipantRepository.delete(participant);
+            }
+        }
     }
 
     @Transactional

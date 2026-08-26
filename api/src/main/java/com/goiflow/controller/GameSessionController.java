@@ -139,8 +139,8 @@ public class GameSessionController {
         response.put("participants", participantList);
         response.put("standings", standings);
 
-        // Include global synchronized room history
-        Map<String, Object> historyQuery = gameHistoryService.queryHistory(List.of(id), null, 30);
+        // Include global synchronized room history (up to 50 items for multiplayer scalability)
+        Map<String, Object> historyQuery = gameHistoryService.queryHistory(List.of(id), null, 50);
         response.put("history", historyQuery.get("history"));
 
         response.put("startedAt", session.getStartedAt());
@@ -153,6 +153,22 @@ public class GameSessionController {
     public ResponseEntity<?> startSession(@PathVariable String id) {
         GameSessionEntity session = gameSessionService.startSession(id);
         return ResponseEntity.ok(session);
+    }
+
+    @PostMapping("/{id}/leave")
+    public ResponseEntity<?> leaveSession(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestParam(required = false) String participantId
+    ) {
+        String effectivePid = participantId;
+        if (effectivePid == null && body != null && body.get("participantId") != null) {
+            effectivePid = body.get("participantId").toString();
+        }
+        if (effectivePid != null && !effectivePid.isBlank()) {
+            gameSessionService.leaveSession(id, effectivePid);
+        }
+        return ResponseEntity.ok(Map.of("message", "Left session successfully"));
     }
 
     @PostMapping("/{id}/restart")

@@ -46,6 +46,8 @@ type HistoryItem = {
   promptText: string;
   rawAnswer: string;
   isCorrect: boolean;
+  attemptCount?: number;
+  submittedAt?: string;
   participantId?: string | null;
   participantName?: string | null;
   participantAvatarUrl?: string | null;
@@ -254,13 +256,23 @@ export default function ActiveGamePage() {
   }, [isAuthenticated, sessionId, status]);
 
   // Only marks session FINISHED if the caller is the host.
-  // Participants just redirect to their own results without ending the session.
+  // Participants notify the server that they left and redirect to their own results.
   const finishAndRedirect = useCallback(async (callerIsHost?: boolean) => {
     if (!sessionId || !participantId || redirectingToResults.current) return;
 
     redirectingToResults.current = true;
-    if (callerIsHost) {
-      await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
+    try {
+      if (callerIsHost) {
+        await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
+      } else {
+        await fetch(`/api/game/sessions/${sessionId}/leave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ participantId }),
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to notify leave/finish:", err);
     }
     router.push(`/results?session=${sessionId}&participant=${participantId}`);
   }, [participantId, router, sessionId]);
@@ -270,17 +282,19 @@ export default function ActiveGamePage() {
       vocabularyEntryId: string | null | undefined,
       fallback?: VocabularyHistoryDetails
     ): Promise<VocabularyHistoryDetails | undefined> => {
-      if (!vocabularyEntryId) return fallback;
+      // If details were already provided by the backend response, use them directly with 0 network calls!
+      if (fallback) return fallback;
+      if (!vocabularyEntryId) return undefined;
 
       try {
         const response = await fetch(`/api/game/vocabulary/${vocabularyEntryId}`);
-        if (!response.ok) return fallback;
+        if (!response.ok) return undefined;
 
         const data = (await response.json()) as VocabularyHistoryResponse;
-        return data.details ?? fallback;
+        return data.details;
       } catch (err) {
         console.error("Failed to load vocabulary history details", err);
-        return fallback;
+        return undefined;
       }
     },
     []
@@ -330,35 +344,88 @@ export default function ActiveGamePage() {
     }
 
     // Synchronize global Word History from server across all participants.
-    // Smart merge: enrich server history items with avatar URLs from the known leaderboard,
-    // and avoid overwriting local real-time items for the current active round.
-    if (Array.isArray(data.history) && data.history.length > 0) {
-      // Build a pid → avatarUrl map from the current leaderboard for avatar enrichment
-      setLeaderboard((prevLeaderboard) => {
-        const avatarByPid: Record<string, string | null> = {};
-        for (const entry of prevLeaderboard) {
-          avatarByPid[entry.participantId] = entry.avatarUrl ?? null;
-        }
-        // Also include participants from this session response
-        for (const p of (Array.isArray(data.participants) ? data.participants : [])) {
-          if (p.avatarUrl) avatarByPid[p.id] = p.avatarUrl;
-        }
+    // Smart merge: enrich server history items with avatar URLs from participants/standings,
+    // and keep recent local real-time items without duplicates.
+    if (Array.isArray(data.history)) {
+      const avatarByPid: Record<string, string | null> = {};
+      for (const p of participants) {
+        if (p.avatarUrl) avatarByPid[p.id] = p.avatarUrl;
+      }
+      for (const s of standings) {
+        if (s.avatarUrl) avatarByPid[s.participantId] = s.avatarUrl;
+      }
 
-        setHistory((prevHistory) => {
-          const serverItems: HistoryItem[] = (data.history as HistoryItem[]).map((item) => ({
+      // Map server items from PostgreSQL (authoritative source of truth for all N participants).
+      const serverItems: HistoryItem[] = (data.history as HistoryItem[])
+        .map((item) => {
+          const attemptCount = item.attemptCount ?? 1;
+          const isUnsubmittedRound = item.participantId == null && item.rawAnswer === "—";
+          // Show vocabulary details if all participants had attempt=0 (unsubmitted round),
+          // or if the answer was correct, or reached 3 attempts / skipped
+          const shouldShowDetails = isUnsubmittedRound || item.isCorrect || attemptCount >= 3;
+          return {
             ...item,
-            // Enrich participantAvatarUrl from leaderboard when server doesn't have it
+            details: shouldShowDetails ? item.details : undefined,
             participantAvatarUrl: item.participantAvatarUrl ?? (item.participantId ? avatarByPid[item.participantId] ?? null : null),
-          }));
-
-          // Keep any local items that are not yet in server history (e.g. current round live submissions)
-          const serverIds = new Set(serverItems.map((i) => i.id).filter(Boolean));
-          const localOnly = prevHistory.filter((i) => i.id && !serverIds.has(i.id));
-
-          return [...localOnly, ...serverItems];
+          };
         });
 
-        return prevLeaderboard;
+      // If a word has at least one real participant submission, drop any 0-attempt fallback for that word
+      const promptsWithRealSubmissions = new Set(
+        serverItems
+          .filter((i) => i.participantId != null)
+          .map((i) => i.promptText)
+      );
+      const filteredServerItems = serverItems.filter(
+        (i) => !(i.participantId == null && i.rawAnswer === "—" && promptsWithRealSubmissions.has(i.promptText))
+      );
+
+      setHistory((prevHistory) => {
+        const seenKeys = new Set<string>();
+        const merged: HistoryItem[] = [];
+
+        // 1. Add all authoritative server items from PostgreSQL
+        for (const item of filteredServerItems) {
+          const attemptKey = `${item.promptText}_${item.participantId ?? ""}_${item.attemptCount ?? item.rawAnswer}`;
+          if (!seenKeys.has(attemptKey)) {
+            seenKeys.add(attemptKey);
+            merged.push(item);
+          }
+        }
+
+        // 2. Local optimistic cache: strictly scoped to CURRENT user only,
+        // and only when the server has not yet returned any submission for this user on this word.
+        // For all other participants, data is 100% driven by PostgreSQL to ensure seamless N-player sync.
+        const serverUserPrompts = new Set(
+          filteredServerItems
+            .filter((s) => s.participantId === pid)
+            .map((s) => s.promptText)
+        );
+        for (const local of prevHistory) {
+          if (!pid || local.participantId !== pid) continue;
+          if (!serverUserPrompts.has(local.promptText)) {
+            const localKey = `${local.promptText}_${local.participantId}_${local.attemptCount ?? local.rawAnswer}`;
+            if (!seenKeys.has(localKey)) {
+              seenKeys.add(localKey);
+              merged.push(local);
+            }
+          }
+        }
+
+        // 3. Sort newest-first by submittedAt (parsed to ms for correct Java/JS format handling),
+        // with attemptCount and id as tiebreakers for fully deterministic order across all clients.
+        const parseTs = (s: string | undefined): number =>
+          s ? (new Date(s).getTime() || 0) : 0;
+        merged.sort((a, b) => {
+          const cmp1 = parseTs(b.submittedAt) - parseTs(a.submittedAt);
+          if (cmp1 !== 0) return cmp1;
+          const cmp2 = (b.attemptCount ?? 0) - (a.attemptCount ?? 0);
+          if (cmp2 !== 0) return cmp2;
+          // Final tiebreak: sort by id so ALL clients see identical ordering
+          return (b.id ?? "").localeCompare(a.id ?? "");
+        });
+
+        return merged.slice(0, 50);
       });
     }
   }, [participantId]);
@@ -373,11 +440,14 @@ export default function ActiveGamePage() {
         (typeof window !== "undefined" ? sessionStorage.getItem("participantId") : null);
       const queryStr = pidParam ? `?participantId=${encodeURIComponent(pidParam)}` : "";
       const response = await fetch(`/api/game/sessions/${sessionId}${queryStr}`);
-      const data = (await response.json()) as SessionResponse & { hostParticipantId?: string };
 
       if (!response.ok) {
-        throw new Error("Failed to load session");
+        const errJson = await response.json().catch(() => null);
+        throw new Error(errJson?.error ?? `Failed to load session (HTTP ${response.status})`);
       }
+
+      const data = (await response.json().catch(() => null)) as (SessionResponse & { hostParticipantId?: string }) | null;
+      if (!data) return null;
 
       const currentPid =
         data.currentParticipantId ||
@@ -397,6 +467,9 @@ export default function ActiveGamePage() {
 
       applySessionResponse({ ...data, isHost: isHostVal }, currentPid);
       return { ...data, isHost: isHostVal };
+    } catch (err) {
+      console.warn("Hydrate session error:", err instanceof Error ? err.message : err);
+      return null;
     } finally {
       setHydratedSessionId(sessionId);
     }
@@ -410,6 +483,8 @@ export default function ActiveGamePage() {
     setIsLeavingGame(true);
     setError(null);
 
+    const pid = participantId || (typeof window !== "undefined" ? sessionStorage.getItem("participantId") : null);
+
     try {
       if (isHost) {
         // Host leaving: finish session for everyone, then redirect
@@ -418,9 +493,14 @@ export default function ActiveGamePage() {
         if (!response.ok) {
           throw new Error(data?.error ?? "Failed to finish session");
         }
+      } else if (pid) {
+        // Non-host guest leaving: notify server to immediately remove this participant from study_session
+        await fetch(`/api/game/sessions/${sessionId}/leave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ participantId: pid }),
+        });
       }
-      // Participant leaving: session continues, only this player is redirected to their own results
-      const pid = participantId || (typeof window !== "undefined" ? sessionStorage.getItem("participantId") : null);
       router.push(`/results?session=${sessionId}${pid ? `&participant=${pid}` : ""}`);
     } catch (err) {
       leavingGameRef.current = false;
@@ -551,7 +631,7 @@ export default function ActiveGamePage() {
       const postRes = await fetch(`/api/game/sessions/${sessionId}/rounds`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "advance" }),
+        body: JSON.stringify({ action: "advance", participantId }),
       });
       const data = (await postRes.json()) as RoundResponse;
       if (!postRes.ok) {
@@ -644,32 +724,7 @@ export default function ActiveGamePage() {
     if (!sessionId || !participantId) return;
 
     const intervalId = window.setInterval(() => {
-      if (pollingRound.current || loadingRef.current || pendingActionRef.current || advancingRoundRef.current) return;
-
-      pollingRound.current = true;
-      void refreshRoundFromServer()
-        .then((serverRound) => {
-          if (!serverRound) return;
-
-          const currentRound = roundRef.current;
-          if (!currentRound || serverRound.roundNumber !== currentRound.roundNumber) {
-            void hydrateSession().catch(console.error);
-          }
-        })
-        .catch((err) => console.error("Failed to poll round state", err))
-        .finally(() => {
-          pollingRound.current = false;
-        });
-    }, 1500);
-
-    return () => window.clearInterval(intervalId);
-  }, [hydrateSession, participantId, refreshRoundFromServer, sessionId]);
-
-  useEffect(() => {
-    if (!sessionId || !participantId) return;
-
-    const intervalId = window.setInterval(() => {
-      if (pollingSession.current || loadingRef.current || pendingActionRef.current || advancingRoundRef.current) return;
+      if (pollingSession.current || redirectingToResults.current || leavingGameRef.current) return;
 
       pollingSession.current = true;
       void hydrateSession()
@@ -695,10 +750,10 @@ export default function ActiveGamePage() {
         .finally(() => {
           pollingSession.current = false;
         });
-    }, 3000);
+    }, 1500);
 
     return () => window.clearInterval(intervalId);
-  }, [finishAndRedirect, hydrateSession, participantId, refreshRoundFromServer, sessionId]);
+  }, [finishAndRedirect, hydrateSession, loadOrCreateRound, participantId, refreshRoundFromServer, sessionId]);
 
   async function handleSubmit() {
     if (!sessionId || !participantId || !round) return;
@@ -743,19 +798,31 @@ export default function ActiveGamePage() {
         const details = await fetchVocabularyHistoryDetails(vocabularyEntryId, data.details ?? undefined);
         const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
 
+        const newEntry: HistoryItem = {
+          id: `${data.submissionId}_att${currentAttemptNumber}`,
+          promptText: round.promptText,
+          rawAnswer: answer,
+          isCorrect: true,
+          attemptCount: currentAttemptNumber,
+          submittedAt: new Date().toISOString(),
+          participantId,
+          participantName: currentParticipantName || authSession?.user?.name || "Player",
+          participantAvatarUrl: currentAvatar,
+          vocabularyEntryId,
+          details,
+        };
+
         setHistory((prev) => [
-          {
-            promptText: round.promptText,
-            rawAnswer: answer,
-            isCorrect: true,
-            participantId,
-            participantName: currentParticipantName || authSession?.user?.name || "Player",
-            participantAvatarUrl: currentAvatar,
-            vocabularyEntryId,
-            details,
-          },
-          ...prev.slice(0, 29),
-        ]);
+          newEntry,
+          ...prev.filter(
+            (i) =>
+              !(
+                i.promptText === round.promptText &&
+                i.participantId === participantId &&
+                i.attemptCount === currentAttemptNumber
+              )
+          ),
+        ].slice(0, 30));
 
         setAnswer("");
         if (data.shouldAdvance) {
@@ -768,21 +835,31 @@ export default function ActiveGamePage() {
         if (currentAttemptNumber < 3) {
           setAttempts(currentAttemptNumber);
 
-          // Record incorrect attempt to Word History (shows Kanji + typed answer, WITHOUT revealing details yet)
+          const newEntry: HistoryItem = {
+            id: `${data.submissionId}_att${currentAttemptNumber}`,
+            promptText: round.promptText,
+            rawAnswer: answer,
+            isCorrect: false,
+            attemptCount: currentAttemptNumber,
+            submittedAt: new Date().toISOString(),
+            participantId,
+            participantName: currentParticipantName || authSession?.user?.name || "Player",
+            participantAvatarUrl: currentAvatar,
+            vocabularyEntryId: round.vocabularyEntryId,
+            details: undefined,
+          };
+
           setHistory((prev) => [
-            {
-              id: data.submissionId || `sub_${Date.now()}`,
-              promptText: round.promptText,
-              rawAnswer: answer,
-              isCorrect: false,
-              participantId,
-              participantName: currentParticipantName || authSession?.user?.name || "Player",
-              participantAvatarUrl: currentAvatar,
-              vocabularyEntryId: round.vocabularyEntryId,
-              details: undefined,
-            },
-            ...prev.slice(0, 29),
-          ]);
+            newEntry,
+            ...prev.filter(
+              (i) =>
+                !(
+                  i.promptText === round.promptText &&
+                  i.participantId === participantId &&
+                  i.attemptCount === currentAttemptNumber
+                )
+            ),
+          ].slice(0, 30));
 
           setAnswer("");
         } else {
@@ -791,20 +868,31 @@ export default function ActiveGamePage() {
           const vocabularyEntryId = data.vocabularyEntryId ?? round.vocabularyEntryId;
           const details = await fetchVocabularyHistoryDetails(vocabularyEntryId, data.details ?? undefined);
 
+          const newEntry: HistoryItem = {
+            id: `${data.submissionId}_att3`,
+            promptText: round.promptText,
+            rawAnswer: answer,
+            isCorrect: false,
+            attemptCount: 3,
+            submittedAt: new Date().toISOString(),
+            participantId,
+            participantName: currentParticipantName || authSession?.user?.name || "Player",
+            participantAvatarUrl: currentAvatar,
+            vocabularyEntryId,
+            details,
+          };
+
           setHistory((prev) => [
-            {
-              id: data.submissionId || `sub_${Date.now()}`,
-              promptText: round.promptText,
-              rawAnswer: answer,
-              isCorrect: false,
-              participantId,
-              participantName: currentParticipantName || authSession?.user?.name || "Player",
-              participantAvatarUrl: currentAvatar,
-              vocabularyEntryId,
-              details,
-            },
-            ...prev.slice(0, 29),
-          ]);
+            newEntry,
+            ...prev.filter(
+              (i) =>
+                !(
+                  i.promptText === round.promptText &&
+                  i.participantId === participantId &&
+                  i.attemptCount === 3
+                )
+            ),
+          ].slice(0, 30));
 
           setAnswer("");
           if (data.shouldAdvance) {
@@ -860,7 +948,7 @@ export default function ActiveGamePage() {
         const response = await fetch(`/api/game/sessions/${sessionId}/rounds`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "skip" }),
+          body: JSON.stringify({ action: reasonLabel || "skip", participantId }),
         });
         const data = await response.json();
 
@@ -868,7 +956,8 @@ export default function ActiveGamePage() {
           throw new Error(data.error ?? `Failed to advance round (${reasonLabel})`);
         }
 
-        if (data.skippedRoundDetails) {
+        const isUserSkip = reasonLabel === "Skipped" || reasonLabel === "skip";
+        if (data.skippedRoundDetails && isUserSkip) {
           const vocabularyEntryId = data.skippedRoundDetails.vocabularyEntryId ?? currentRound.vocabularyEntryId;
           const details = await fetchVocabularyHistoryDetails(
             vocabularyEntryId,
@@ -881,6 +970,10 @@ export default function ActiveGamePage() {
               promptText: data.skippedRoundDetails.promptText,
               rawAnswer: reasonLabel,
               isCorrect: false,
+              // Stamp submittedAt so this entry sorts correctly (newest-first) after hydrateSession re-merge.
+              // Without submittedAt, the entry gets "" timestamp and sorts to the BOTTOM of Word History.
+              submittedAt: new Date().toISOString(),
+              attemptCount: 3,         // Skip counts as final attempt for sort purposes
               participantId,
               participantName: currentParticipantName || authSession?.user?.name || "Player",
               participantAvatarUrl: currentAvatar,
@@ -915,25 +1008,31 @@ export default function ActiveGamePage() {
   }
 
   const handleTimeout = useCallback(async () => {
-    await advanceRoundWithReason("Hết giờ (Time out)");
+    // Prevent duplicate timeout trigger if another action is already advancing the round
+    if (advancingRoundRef.current || loadingRef.current || pendingActionRef.current) return;
+    await advanceRoundWithReason("timeout");
   }, [advanceRoundWithReason]);
 
   // Reset timer on new round
   useEffect(() => {
     if (round?.roundId) {
-      setTimeLeft(timePerPrompt);
+      setTimeLeft(timePerPrompt > 0 ? timePerPrompt : 15);
     }
   }, [round?.roundId, timePerPrompt]);
 
   // Active countdown timer
   useEffect(() => {
-    if (!round || loading || pendingAction) return;
+    const roundId = round?.roundId;
+    if (!roundId || loading || pendingAction || timePerPrompt <= 0) return;
 
     const timer = window.setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
-          void handleTimeout();
+          // Only the host (or single player) triggers the round advance on timeout to prevent duplicate spam
+          if (isHost) {
+            void handleTimeout();
+          }
           return 0;
         }
         return prev - 1;
@@ -941,7 +1040,7 @@ export default function ActiveGamePage() {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [round, loading, pendingAction, handleTimeout]);
+  }, [round?.roundId, loading, pendingAction, timePerPrompt, isHost, handleTimeout]);
 
   const progressValue = round ? Math.min(100, (round.roundNumber / Math.max(maxRounds, round.roundNumber)) * 100) : 0;
   const promptLength = round?.promptText.length ?? 0;
@@ -975,6 +1074,9 @@ export default function ActiveGamePage() {
               No history yet.
             </p>
           )}
+          {/* Ghost entries (participantId=null, rawAnswer="—") for skipped/unsubmitted rounds now carry
+               vocabulary details and are intentionally shown so all participants see the vocab reveal.
+               The merge logic already suppresses ghost entries when real submissions exist for that word. */}
           {history.map((item, index) => {
             const readings = item.details
               ? [
@@ -1007,7 +1109,7 @@ export default function ActiveGamePage() {
 
             return (
               <div
-                key={`${item.promptText}-${item.id || index}`}
+                key={`${item.promptText}_${item.participantId ?? "p"}_${item.attemptCount ?? 1}_${item.rawAnswer}_${item.id || index}_${index}`}
                 className="border-b border-[var(--color-outline-variant)] px-4 py-3 transition-colors hover:bg-[var(--color-surface-container-lowest)]"
               >
                 <div className="flex items-center gap-3">

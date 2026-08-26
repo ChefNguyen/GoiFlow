@@ -65,6 +65,40 @@ public class GameRoundController {
 
         if (prevRoundOpt.isPresent()) {
             GameRoundEntity prevRound = prevRoundOpt.get();
+            String participantId = body != null && body.get("participantId") != null ? body.get("participantId").toString() : null;
+            String action = body != null && body.get("action") != null ? body.get("action").toString() : "skip";
+
+            boolean isSkipAction = action != null && (action.equalsIgnoreCase("skip") || action.equalsIgnoreCase("Skipped"));
+            if (isSkipAction && participantId != null && !participantId.isBlank()) {
+                Optional<GameSubmissionEntity> existingSub = gameSubmissionRepository.findByGameRoundIdAndParticipantId(prevRound.getId(), participantId);
+                if (existingSub.isEmpty()) {
+                    GameSubmissionEntity submission = GameSubmissionEntity.builder()
+                            .id(CuidUtils.generate())
+                            .gameRoundId(prevRound.getId())
+                            .participantId(participantId)
+                            .rawAnswer("skip")
+                            .normalizedAnswer("skip")
+                            .attemptCount(3)
+                            .isCorrect(false)
+                            .scoreAwarded(0)
+                            .submittedAt(LocalDateTime.now())
+                            .build();
+                    gameSubmissionRepository.save(submission);
+                } else {
+                    GameSubmissionEntity submission = existingSub.get();
+                    // Never overwrite a correct submission
+                    if (!Boolean.TRUE.equals(submission.getIsCorrect())) {
+                        submission.setRawAnswer("skip");
+                        submission.setNormalizedAnswer("skip");
+                        submission.setAttemptCount(3);
+                        submission.setIsCorrect(false);
+                        submission.setScoreAwarded(0);
+                        submission.setSubmittedAt(LocalDateTime.now());
+                        gameSubmissionRepository.save(submission);
+                    }
+                }
+            }
+
             if (prevRound.getVocabularyEntryId() != null) {
                 VocabularyEntryEntity vocab = vocabularyEntryRepository.findById(prevRound.getVocabularyEntryId()).orElse(null);
                 if (vocab != null) {
@@ -141,6 +175,7 @@ public class GameRoundController {
 
         // Persist real submission to PostgreSQL
         String participantId = req.getParticipantId() != null ? req.getParticipantId() : session.getHostParticipantId();
+        GameSubmissionEntity savedSub = null;
         if (participantId != null) {
             Optional<GameSubmissionEntity> existingSub = gameSubmissionRepository.findByGameRoundIdAndParticipantId(round.getId(), participantId);
             GameSubmissionEntity submission;
@@ -165,11 +200,11 @@ public class GameRoundController {
                         .submittedAt(LocalDateTime.now())
                         .build();
             }
-            gameSubmissionRepository.save(submission);
+            savedSub = gameSubmissionRepository.save(submission);
         }
 
         Map<String, Object> response = new HashMap<>();
-        response.put("submissionId", "sub_" + System.currentTimeMillis());
+        response.put("submissionId", savedSub != null ? savedSub.getId() : ("sub_" + System.currentTimeMillis()));
         response.put("isCorrect", isCorrect);
         response.put("scoreAwarded", isCorrect ? 1 : 0);
         response.put("normalizedAnswer", normalizedInput);
