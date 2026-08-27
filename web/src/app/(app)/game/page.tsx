@@ -1381,7 +1381,7 @@ export default function ActiveGamePage() {
                 onClick={() => setIsLeaveDialogOpen(false)}
                 disabled={isLeavingGame}
               >
-                Stay in Match
+                Stay
               </Button>
               <Button 
                 variant="primary" 
@@ -1389,7 +1389,7 @@ export default function ActiveGamePage() {
                 onClick={leaveGameAndGoToLeaderboard} 
                 disabled={isLeavingGame}
               >
-                {isLeavingGame ? "Leaving..." : "Leave Match"}
+                {isLeavingGame ? "Leaving..." : "Leave"}
               </Button>
             </div>
           </div>

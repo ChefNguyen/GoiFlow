@@ -53,6 +53,7 @@ function UserAvatarBox({
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
+  const [imgError, setImgError] = useState(false);
   const initial = (displayName || "U").trim().charAt(0).toUpperCase();
   const sizeMap = {
     sm: "h-5 w-5 text-[9px]",
@@ -62,11 +63,12 @@ function UserAvatarBox({
   };
   const sizeClass = sizeMap[size];
 
-  if (avatarUrl) {
+  if (avatarUrl && !imgError) {
     return (
       <img
         src={avatarUrl}
         alt={displayName || "Player"}
+        onError={() => setImgError(true)}
         className={`${sizeClass} rounded-none object-cover border border-[var(--color-primary)] shrink-0 ${className}`}
       />
     );
@@ -184,6 +186,8 @@ export default function ResultsPage() {
 
   const displayError = error ?? (!sessionId ? "Missing session id" : null);
 
+  const isTopTie = results.length >= 2 && results[0].rank === results[1].rank && results[0].rank === 1;
+
   let podiumOrder: ResultEntry[] = [];
   if (results.length === 1) {
     podiumOrder = [results[0]];
@@ -199,25 +203,29 @@ export default function ResultsPage() {
 
   const podiumSlotByRank: Record<number, { heightClassName: string; outerClassName: string; barClassName: string; rankClassName: string; nameClassName: string }> = {
     1: {
-      heightClassName: "h-[200px]",
-      outerClassName: "max-w-[180px]",
-      barClassName: "bg-[var(--color-primary)] border-[var(--color-primary)]",
-      rankClassName: "text-6xl text-[var(--color-on-primary)] opacity-20",
-      nameClassName: "text-3xl",
+      heightClassName: isTopTie ? "h-[150px]" : "h-[195px]",
+      outerClassName: "max-w-[175px]",
+      barClassName: isTopTie
+        ? "bg-[var(--color-surface-container-high)] border-2 border-[var(--color-primary)] text-[var(--color-primary)]"
+        : "bg-[var(--color-primary)] border-[var(--color-primary)]",
+      rankClassName: isTopTie
+        ? "text-5xl text-[var(--color-primary)] font-black opacity-80"
+        : "text-6xl text-[var(--color-on-primary)] opacity-20",
+      nameClassName: "text-2xl md:text-3xl",
     },
     2: {
-      heightClassName: "h-[140px]",
-      outerClassName: "max-w-[160px]",
-      barClassName: "bg-[var(--color-surface-container-high)] border-[var(--color-primary)]",
-      rankClassName: "text-4xl text-[var(--color-primary)] opacity-20",
-      nameClassName: "text-2xl",
+      heightClassName: "h-[135px]",
+      outerClassName: "max-w-[155px]",
+      barClassName: "bg-[var(--color-surface-container-high)] border border-[var(--color-primary)]",
+      rankClassName: "text-4xl text-[var(--color-primary)] opacity-25",
+      nameClassName: "text-xl md:text-2xl",
     },
     3: {
-      heightClassName: "h-[100px]",
-      outerClassName: "max-w-[160px]",
-      barClassName: "bg-[var(--color-surface)] border-[var(--color-outline-variant)]",
+      heightClassName: "h-[95px]",
+      outerClassName: "max-w-[155px]",
+      barClassName: "bg-[var(--color-surface)] border border-[var(--color-outline-variant)]",
       rankClassName: "text-4xl text-[var(--color-primary)] opacity-20",
-      nameClassName: "text-2xl",
+      nameClassName: "text-xl md:text-2xl",
     },
   };
 
@@ -279,6 +287,17 @@ export default function ResultsPage() {
 
         {!loading && !displayError && results.length > 0 && (
           <>
+            {isTopTie && (
+              <div className="flex justify-center mb-6">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 border border-[var(--color-primary)] bg-[var(--color-surface-container-lowest)] shadow-sm">
+                  <Crown className="h-4 w-4 text-[var(--color-primary)] fill-[var(--color-primary)]" />
+                  <span className="font-[family-name:var(--font-label)] text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]">
+                    Tied for 1st Place • Co-Champions
+                  </span>
+                </div>
+              </div>
+            )}
+
             <section className="mb-16 flex w-full max-w-2xl items-end justify-center gap-6 md:gap-8 pt-6">
               {podiumOrder.map((entry) => {
                 const slot = podiumSlotByRank[entry.rank] || podiumSlotByRank[3];

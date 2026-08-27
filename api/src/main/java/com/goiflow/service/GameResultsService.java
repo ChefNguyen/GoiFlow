@@ -35,7 +35,10 @@ public class GameResultsService {
         GameSessionEntity session = gameSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 
-        List<GameParticipantEntity> participants = gameParticipantRepository.findByGameSessionId(sessionId);
+        List<GameParticipantEntity> allParticipants = gameParticipantRepository.findByGameSessionId(sessionId);
+        List<GameParticipantEntity> activeParticipants = allParticipants.stream()
+                .filter(p -> p.getLeftAt() == null || p.getId().equals(session.getHostParticipantId()))
+                .toList();
         List<GameRoundEntity> rounds = gameRoundRepository.findByGameSessionIdOrderByRoundNumberAsc(sessionId);
 
         List<GameResultEntity> computedResults = new ArrayList<>();
@@ -46,7 +49,7 @@ public class GameResultsService {
 
         Map<String, Integer> scoreMap = new HashMap<>();
         Map<String, Integer> correctMap = new HashMap<>();
-        for (GameParticipantEntity p : participants) {
+        for (GameParticipantEntity p : activeParticipants) {
             scoreMap.put(p.getId(), 0);
             correctMap.put(p.getId(), 0);
         }
@@ -58,7 +61,7 @@ public class GameResultsService {
             }
         }
 
-        for (GameParticipantEntity p : participants) {
+        for (GameParticipantEntity p : activeParticipants) {
             int totalScore = scoreMap.getOrDefault(p.getId(), 0);
             int correctCount = correctMap.getOrDefault(p.getId(), 0);
 

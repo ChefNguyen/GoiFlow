@@ -153,6 +153,23 @@ public class GameSessionService {
 
                 return gameParticipantRepository.save(p);
             }
+        } else if (displayName != null && !displayName.isBlank()) {
+            // For unauthenticated guests, match by displayName in this session
+            List<GameParticipantEntity> existingParticipants = gameParticipantRepository.findByGameSessionId(session.getId());
+            Optional<GameParticipantEntity> matchByName = existingParticipants.stream()
+                    .filter(p -> p.getUserId() == null && displayName.equalsIgnoreCase(p.getDisplayName()))
+                    .findFirst();
+            if (matchByName.isPresent()) {
+                GameParticipantEntity p = matchByName.get();
+                p.setLeftAt(null); // Re-activate participant on rejoin
+                List<GameSubmissionEntity> oldSubs = gameSubmissionRepository.findByParticipantId(p.getId());
+                if (!oldSubs.isEmpty()) {
+                    gameSubmissionRepository.deleteAll(oldSubs);
+                }
+                Optional<GameResultEntity> oldRes = gameResultRepository.findByGameSessionIdAndParticipantId(session.getId(), p.getId());
+                oldRes.ifPresent(gameResultRepository::delete);
+                return gameParticipantRepository.save(p);
+            }
         }
 
         GameParticipantEntity participant = GameParticipantEntity.builder()
