@@ -10,6 +10,7 @@ import com.goiflow.enums.GameMode;
 import com.goiflow.enums.GameSessionStatus;
 import com.goiflow.enums.JlptLevel;
 import com.goiflow.enums.ParticipantRole;
+import com.goiflow.enums.RoundStatus;
 import com.goiflow.repository.*;
 import com.goiflow.util.CuidUtils;
 import lombok.RequiredArgsConstructor;
@@ -138,11 +139,11 @@ public class GameSessionService {
             var existing = gameParticipantRepository.findByGameSessionIdAndUserId(session.getId(), effectiveUserId);
             if (existing.isPresent()) {
                 GameParticipantEntity p = existing.get();
+                p.setLeftAt(null); // Re-activate participant on rejoin
                 if (displayName != null && !displayName.isBlank()) {
                     p.setDisplayName(displayName);
-                    return gameParticipantRepository.save(p);
                 }
-                return p;
+                return gameParticipantRepository.save(p);
             }
         }
 
@@ -182,24 +183,30 @@ public class GameSessionService {
                 session.setFinishedAt(LocalDateTime.now());
                 gameSessionRepository.save(session);
             } else {
-                // Non-host guest leaving: remove participant so they are immediately cleared from study_session
-                gameParticipantRepository.delete(participant);
+                // Non-host guest leaving: stamp leftAt timestamp so they are removed from active panel, but all their scores & submissions remain 100% preserved
+                participant.setLeftAt(LocalDateTime.now());
+                gameParticipantRepository.save(participant);
             }
         }
     }
 
     @Transactional
     public GameSessionEntity restartSession(String sessionId) {
+        return restartSession(sessionId, null);
+    }
+
+    @Transactional
+    public GameSessionEntity restartSession(String sessionId, String callerParticipantId) {
         GameSessionEntity session = gameSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 
-        // Clean up old results
+        // 1. Clean up old results for this session
         List<GameResultEntity> results = gameResultRepository.findByGameSessionIdOrderByRankAsc(sessionId);
         if (!results.isEmpty()) {
             gameResultRepository.deleteAll(results);
         }
 
-        // Clean up old submissions and rounds for this session to prevent unique constraint conflicts on roundNumber
+        // 2. Clean up old submissions and rounds to reset word history and scores for the new match
         List<GameRoundEntity> rounds = gameRoundRepository.findByGameSessionIdOrderByRoundNumberAsc(sessionId);
         for (GameRoundEntity r : rounds) {
             List<GameSubmissionEntity> subs = gameSubmissionRepository.findByGameRoundId(r.getId());
@@ -211,6 +218,16 @@ public class GameSessionService {
             gameRoundRepository.deleteAll(rounds);
         }
 
+        // 3. Only keep the host / caller active. Mark other participants as not yet entered until they play again
+        List<GameParticipantEntity> participants = gameParticipantRepository.findByGameSessionId(sessionId);
+        for (GameParticipantEntity p : participants) {
+            boolean isActive = p.getId().equals(session.getHostParticipantId()) ||
+                               (callerParticipantId != null && p.getId().equals(callerParticipantId));
+            p.setLeftAt(isActive ? null : LocalDateTime.now());
+            gameParticipantRepository.save(p);
+        }
+
+        // 4. Reset session back to round 0 and IN_PROGRESS
         session.setStatus(GameSessionStatus.IN_PROGRESS);
         session.setCurrentRoundNumber(0);
         session.setStartedAt(LocalDateTime.now());

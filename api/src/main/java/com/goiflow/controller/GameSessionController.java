@@ -39,11 +39,40 @@ public class GameSessionController {
         GameSessionEntity session = gameSessionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 
-        List<GameParticipantEntity> participants = gameParticipantRepository.findByGameSessionId(id);
+        List<GameParticipantEntity> allParticipants = gameParticipantRepository.findByGameSessionId(id);
         List<GameRoundEntity> rounds = gameRoundRepository.findByGameSessionIdOrderByRoundNumberAsc(id);
 
+        // Resolve currentParticipantId for the requesting user
+        String requestingUserId = auth != null ? auth.getName() : (userId != null && !userId.isBlank() ? userId : null);
+        String currentParticipantId = participantId != null && !participantId.isBlank() ? participantId : null;
+        if (currentParticipantId == null && requestingUserId != null) {
+            currentParticipantId = allParticipants.stream()
+                    .filter(p -> requestingUserId.equals(p.getUserId()))
+                    .map(GameParticipantEntity::getId)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        // When a participant enters/polls the live match, re-admit them into the active panel
+        if (currentParticipantId != null && session.getStatus() == com.goiflow.enums.GameSessionStatus.IN_PROGRESS) {
+            for (GameParticipantEntity p : allParticipants) {
+                if (p.getId().equals(currentParticipantId) && p.getLeftAt() != null) {
+                    p.setLeftAt(null);
+                    gameParticipantRepository.save(p);
+                    break;
+                }
+            }
+        }
+
+        // Filter active participants for the live match (only participants who have entered/active in this match, plus host)
+        List<GameParticipantEntity> activeParticipants = (session.getStatus() == com.goiflow.enums.GameSessionStatus.IN_PROGRESS)
+                ? allParticipants.stream()
+                        .filter(p -> p.getLeftAt() == null || p.getId().equals(session.getHostParticipantId()))
+                        .toList()
+                : allParticipants;
+
         // Batch fetch user avatars
-        Set<String> userIds = participants.stream()
+        Set<String> userIds = allParticipants.stream()
                 .map(GameParticipantEntity::getUserId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
@@ -51,10 +80,10 @@ public class GameSessionController {
                 userRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(UserEntity::getId, u -> u, (a, b) -> a));
 
-        // Compute live standings per participant
+        // Compute live cumulative standings per participant across all submissions
         Map<String, Integer> scoreMap = new HashMap<>();
         Map<String, Integer> correctMap = new HashMap<>();
-        for (GameParticipantEntity p : participants) {
+        for (GameParticipantEntity p : allParticipants) {
             scoreMap.put(p.getId(), 0);
             correctMap.put(p.getId(), 0);
         }
@@ -70,20 +99,9 @@ public class GameSessionController {
             }
         }
 
-        // Resolve currentParticipantId for the requesting user
-        String requestingUserId = auth != null ? auth.getName() : (userId != null && !userId.isBlank() ? userId : null);
-        String currentParticipantId = participantId != null && !participantId.isBlank() ? participantId : null;
-        if (currentParticipantId == null && requestingUserId != null) {
-            currentParticipantId = participants.stream()
-                    .filter(p -> requestingUserId.equals(p.getUserId()))
-                    .map(GameParticipantEntity::getId)
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        // Build standings sorted by score desc
+        // Build standings sorted by score desc for active participants
         List<Map<String, Object>> standings = new ArrayList<>();
-        participants.stream()
+        activeParticipants.stream()
                 .sorted((a, b) -> Integer.compare(
                         scoreMap.getOrDefault(b.getId(), 0),
                         scoreMap.getOrDefault(a.getId(), 0)))
@@ -107,8 +125,8 @@ public class GameSessionController {
             standings.get(i).put("rank", i + 1);
         }
 
-        // Build participants list
-        List<Map<String, Object>> participantList = participants.stream().map(p -> {
+        // Build active participants list
+        List<Map<String, Object>> participantList = activeParticipants.stream().map(p -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", p.getId());
             m.put("displayName", p.getDisplayName());
@@ -172,8 +190,16 @@ public class GameSessionController {
     }
 
     @PostMapping("/{id}/restart")
-    public ResponseEntity<?> restartSession(@PathVariable String id) {
-        GameSessionEntity session = gameSessionService.restartSession(id);
+    public ResponseEntity<?> restartSession(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestParam(required = false) String participantId
+    ) {
+        String effectivePid = participantId;
+        if (effectivePid == null && body != null && body.get("participantId") != null) {
+            effectivePid = body.get("participantId").toString();
+        }
+        GameSessionEntity session = gameSessionService.restartSession(id, effectivePid);
         return ResponseEntity.ok(session);
     }
 }

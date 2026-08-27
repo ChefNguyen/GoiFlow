@@ -11,6 +11,7 @@ import java.util.Optional;
 @Repository
 public interface GameSubmissionRepository extends JpaRepository<GameSubmissionEntity, String> {
     Optional<GameSubmissionEntity> findByGameRoundIdAndParticipantId(String gameRoundId, String participantId);
+    Optional<GameSubmissionEntity> findByGameRoundIdAndParticipantIdAndAttemptCount(String gameRoundId, String participantId, Integer attemptCount);
     List<GameSubmissionEntity> findByGameRoundId(String gameRoundId);
     List<GameSubmissionEntity> findByGameRoundIdIn(Collection<String> gameRoundIds);
 }

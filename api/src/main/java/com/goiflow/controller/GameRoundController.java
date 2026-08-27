@@ -70,7 +70,7 @@ public class GameRoundController {
 
             boolean isSkipAction = action != null && (action.equalsIgnoreCase("skip") || action.equalsIgnoreCase("Skipped"));
             if (isSkipAction && participantId != null && !participantId.isBlank()) {
-                Optional<GameSubmissionEntity> existingSub = gameSubmissionRepository.findByGameRoundIdAndParticipantId(prevRound.getId(), participantId);
+                Optional<GameSubmissionEntity> existingSub = gameSubmissionRepository.findByGameRoundIdAndParticipantIdAndAttemptCount(prevRound.getId(), participantId, 3);
                 if (existingSub.isEmpty()) {
                     GameSubmissionEntity submission = GameSubmissionEntity.builder()
                             .id(CuidUtils.generate())
@@ -86,7 +86,6 @@ public class GameRoundController {
                     gameSubmissionRepository.save(submission);
                 } else {
                     GameSubmissionEntity submission = existingSub.get();
-                    // Never overwrite a correct submission
                     if (!Boolean.TRUE.equals(submission.getIsCorrect())) {
                         submission.setRawAnswer("skip");
                         submission.setNormalizedAnswer("skip");
@@ -173,17 +172,17 @@ public class GameRoundController {
         boolean shouldAdvance = isCorrect || currentAttempt >= 3;
         int remainingAttempts = Math.max(0, 3 - currentAttempt);
 
-        // Persist real submission to PostgreSQL
+        // Persist real submission to PostgreSQL (each attempt is its own distinct record)
         String participantId = req.getParticipantId() != null ? req.getParticipantId() : session.getHostParticipantId();
         GameSubmissionEntity savedSub = null;
         if (participantId != null) {
-            Optional<GameSubmissionEntity> existingSub = gameSubmissionRepository.findByGameRoundIdAndParticipantId(round.getId(), participantId);
+            Optional<GameSubmissionEntity> existingSub = gameSubmissionRepository
+                    .findByGameRoundIdAndParticipantIdAndAttemptCount(round.getId(), participantId, currentAttempt);
             GameSubmissionEntity submission;
             if (existingSub.isPresent()) {
                 submission = existingSub.get();
                 submission.setRawAnswer(req.getRawAnswer());
                 submission.setNormalizedAnswer(normalizedInput);
-                submission.setAttemptCount(currentAttempt);
                 submission.setIsCorrect(isCorrect);
                 submission.setScoreAwarded(isCorrect ? 1 : 0);
                 submission.setSubmittedAt(LocalDateTime.now());

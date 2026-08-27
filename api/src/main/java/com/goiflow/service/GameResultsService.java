@@ -40,20 +40,27 @@ public class GameResultsService {
 
         List<GameResultEntity> computedResults = new ArrayList<>();
 
-        for (GameParticipantEntity p : participants) {
-            int totalScore = 0;
-            int correctCount = 0;
+        List<String> roundIds = rounds.stream().map(GameRoundEntity::getId).toList();
+        List<GameSubmissionEntity> allSubs = roundIds.isEmpty() ? Collections.emptyList() :
+                gameSubmissionRepository.findByGameRoundIdIn(roundIds);
 
-            for (GameRoundEntity r : rounds) {
-                Optional<GameSubmissionEntity> subOpt = gameSubmissionRepository.findByGameRoundIdAndParticipantId(r.getId(), p.getId());
-                if (subOpt.isPresent()) {
-                    GameSubmissionEntity sub = subOpt.get();
-                    if (Boolean.TRUE.equals(sub.getIsCorrect())) {
-                        correctCount++;
-                        totalScore += (sub.getScoreAwarded() != null ? sub.getScoreAwarded() : 1);
-                    }
-                }
+        Map<String, Integer> scoreMap = new HashMap<>();
+        Map<String, Integer> correctMap = new HashMap<>();
+        for (GameParticipantEntity p : participants) {
+            scoreMap.put(p.getId(), 0);
+            correctMap.put(p.getId(), 0);
+        }
+
+        for (GameSubmissionEntity sub : allSubs) {
+            if (Boolean.TRUE.equals(sub.getIsCorrect()) && sub.getParticipantId() != null) {
+                scoreMap.merge(sub.getParticipantId(), sub.getScoreAwarded() != null ? sub.getScoreAwarded() : 1, Integer::sum);
+                correctMap.merge(sub.getParticipantId(), 1, Integer::sum);
             }
+        }
+
+        for (GameParticipantEntity p : participants) {
+            int totalScore = scoreMap.getOrDefault(p.getId(), 0);
+            int correctCount = correctMap.getOrDefault(p.getId(), 0);
 
             Optional<GameResultEntity> existingRes = gameResultRepository.findByGameSessionIdAndParticipantId(sessionId, p.getId());
             GameResultEntity resultEntity = existingRes.orElseGet(() -> GameResultEntity.builder()

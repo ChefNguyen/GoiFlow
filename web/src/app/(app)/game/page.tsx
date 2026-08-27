@@ -384,9 +384,9 @@ export default function ActiveGamePage() {
         const seenKeys = new Set<string>();
         const merged: HistoryItem[] = [];
 
-        // 1. Add all authoritative server items from PostgreSQL
+        // 1. Add all authoritative server items from PostgreSQL (each attempt is uniquely keyed by promptText + participantId + attemptCount)
         for (const item of filteredServerItems) {
-          const attemptKey = `${item.promptText}_${item.participantId ?? ""}_${item.attemptCount ?? item.rawAnswer}`;
+          const attemptKey = `${item.promptText}_${item.participantId ?? "ghost"}_att${item.attemptCount ?? 0}`;
           if (!seenKeys.has(attemptKey)) {
             seenKeys.add(attemptKey);
             merged.push(item);
@@ -394,21 +394,14 @@ export default function ActiveGamePage() {
         }
 
         // 2. Local optimistic cache: strictly scoped to CURRENT user only,
-        // and only when the server has not yet returned any submission for this user on this word.
+        // and only when the server has not yet returned this specific attempt.
         // For all other participants, data is 100% driven by PostgreSQL to ensure seamless N-player sync.
-        const serverUserPrompts = new Set(
-          filteredServerItems
-            .filter((s) => s.participantId === pid)
-            .map((s) => s.promptText)
-        );
         for (const local of prevHistory) {
           if (!pid || local.participantId !== pid) continue;
-          if (!serverUserPrompts.has(local.promptText)) {
-            const localKey = `${local.promptText}_${local.participantId}_${local.attemptCount ?? local.rawAnswer}`;
-            if (!seenKeys.has(localKey)) {
-              seenKeys.add(localKey);
-              merged.push(local);
-            }
+          const localKey = `${local.promptText}_${local.participantId}_att${local.attemptCount ?? 1}`;
+          if (!seenKeys.has(localKey)) {
+            seenKeys.add(localKey);
+            merged.push(local);
           }
         }
 
@@ -487,21 +480,24 @@ export default function ActiveGamePage() {
 
     try {
       if (isHost) {
-        // Host leaving: finish session for everyone, then redirect
+        // Host leaving: finish session for everyone, then redirect to results
         const response = await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
         const data = await response.json().catch(() => null);
         if (!response.ok) {
           throw new Error(data?.error ?? "Failed to finish session");
         }
-      } else if (pid) {
-        // Non-host guest leaving: notify server to immediately remove this participant from study_session
-        await fetch(`/api/game/sessions/${sessionId}/leave`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ participantId: pid }),
-        });
+        router.push(`/results?session=${sessionId}${pid ? `&participant=${pid}` : ""}`);
+      } else {
+        // Non-host guest leaving: notify server to immediately remove this participant from study_session and redirect to setup screen
+        if (pid) {
+          await fetch(`/api/game/sessions/${sessionId}/leave`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ participantId: pid }),
+          });
+        }
+        router.push("/game/setup");
       }
-      router.push(`/results?session=${sessionId}${pid ? `&participant=${pid}` : ""}`);
     } catch (err) {
       leavingGameRef.current = false;
       redirectingToResults.current = false;
@@ -558,6 +554,10 @@ export default function ActiveGamePage() {
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (sessionId && !leavingGameRef.current && !redirectingToResults.current) {
+        if (!isHost && participantId) {
+          const blob = new Blob([JSON.stringify({ participantId })], { type: "application/json" });
+          navigator.sendBeacon(`/api/game/sessions/${sessionId}/leave`, blob);
+        }
         e.preventDefault();
         e.returnValue = "";
         return "";
@@ -579,7 +579,7 @@ export default function ActiveGamePage() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [sessionId]);
+  }, [isHost, participantId, sessionId]);
 
   const refreshRoundFromServer = useCallback(async () => {
     if (!sessionId) return null;
@@ -822,7 +822,7 @@ export default function ActiveGamePage() {
                 i.attemptCount === currentAttemptNumber
               )
           ),
-        ].slice(0, 30));
+        ].slice(0, 50));
 
         setAnswer("");
         if (data.shouldAdvance) {
@@ -859,7 +859,7 @@ export default function ActiveGamePage() {
                   i.attemptCount === currentAttemptNumber
                 )
             ),
-          ].slice(0, 30));
+          ].slice(0, 50));
 
           setAnswer("");
         } else {
@@ -892,7 +892,7 @@ export default function ActiveGamePage() {
                   i.attemptCount === 3
                 )
             ),
-          ].slice(0, 30));
+          ].slice(0, 50));
 
           setAnswer("");
           if (data.shouldAdvance) {
@@ -956,34 +956,6 @@ export default function ActiveGamePage() {
           throw new Error(data.error ?? `Failed to advance round (${reasonLabel})`);
         }
 
-        const isUserSkip = reasonLabel === "Skipped" || reasonLabel === "skip";
-        if (data.skippedRoundDetails && isUserSkip) {
-          const vocabularyEntryId = data.skippedRoundDetails.vocabularyEntryId ?? currentRound.vocabularyEntryId;
-          const details = await fetchVocabularyHistoryDetails(
-            vocabularyEntryId,
-            data.skippedRoundDetails.details
-          );
-          const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
-
-          setHistory((prev) => [
-            {
-              promptText: data.skippedRoundDetails.promptText,
-              rawAnswer: reasonLabel,
-              isCorrect: false,
-              // Stamp submittedAt so this entry sorts correctly (newest-first) after hydrateSession re-merge.
-              // Without submittedAt, the entry gets "" timestamp and sorts to the BOTTOM of Word History.
-              submittedAt: new Date().toISOString(),
-              attemptCount: 3,         // Skip counts as final attempt for sort purposes
-              participantId,
-              participantName: currentParticipantName || authSession?.user?.name || "Player",
-              participantAvatarUrl: currentAvatar,
-              vocabularyEntryId,
-              details,
-            },
-            ...prev.slice(0, 29),
-          ]);
-        }
-
         if (data.status === "FINISHED") {
           await finishAndRedirect();
           return;
@@ -1000,7 +972,7 @@ export default function ActiveGamePage() {
         advancingRoundRef.current = false;
       }
     },
-    [fetchVocabularyHistoryDetails, finishAndRedirect, hydrateSession, participantId, sessionId]
+    [finishAndRedirect, hydrateSession, participantId, sessionId]
   );
 
   async function handleSkip() {
@@ -1357,9 +1329,13 @@ export default function ActiveGamePage() {
         </div>
 
         <div className="border-t border-[var(--color-outline-variant)] p-4">
-          <Link href="/results" className="block" onClick={handleFinish}>
-            <Button variant="secondary" className="w-full py-3 uppercase tracking-[0.02em] text-xs">FINISH</Button>
-          </Link>
+          <Button
+            variant="secondary"
+            className="w-full py-3 uppercase tracking-[0.02em] text-xs font-semibold"
+            onClick={() => setIsLeaveDialogOpen(true)}
+          >
+            {isHost ? "FINISH GAME" : "LEAVE GAME"}
+          </Button>
         </div>
       </aside>
 
@@ -1389,13 +1365,13 @@ export default function ActiveGamePage() {
             </div>
 
             <h2 id="leave-game-title" className="font-[family-name:var(--font-headline)] text-2xl font-bold tracking-tight text-[var(--color-primary)] md:text-3xl">
-              Leave this game?
+              {isHost ? "Finish this game?" : "Leave this game?"}
             </h2>
 
             <p className="mt-4 text-sm leading-relaxed text-[var(--color-secondary)]">
               {isHost
-                ? "Leaving now will conclude the active session for all participants and redirect to the final match results."
-                : "You will leave this game session and navigate to the standings. The host and other players will continue."}
+                ? "Concluding now will finish the active session for all participants and redirect to the final match results."
+                : "You will leave this game session and return to the game setup screen. The host and other players will continue."}
             </p>
 
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

@@ -34,6 +34,9 @@ public class GameParticipantEntity {
     @Column(name = "\"joinedAt\"", nullable = false)
     private LocalDateTime joinedAt;
 
+    @Column(name = "\"leftAt\"")
+    private LocalDateTime leftAt;
+
     @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "\"gameSessionId\"", insertable = false, updatable = false)

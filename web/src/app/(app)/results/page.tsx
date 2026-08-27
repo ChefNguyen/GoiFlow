@@ -215,14 +215,19 @@ export default function ResultsPage() {
     }
 
     setRestarting(true);
+    const pid =
+      participantId ||
+      (typeof window !== "undefined" ? sessionStorage.getItem("participantId") : null);
+
     try {
-      await fetch(`/api/game/sessions/${sessionId}/restart`, { method: "POST" });
+      await fetch(`/api/game/sessions/${sessionId}/restart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participantId: pid }),
+      });
     } catch (err) {
       console.error("Failed to restart session", err);
     } finally {
-      const pid =
-        participantId ||
-        (typeof window !== "undefined" ? sessionStorage.getItem("participantId") : null);
       router.push(`/game?session=${sessionId}${pid ? `&participant=${pid}` : ""}`);
     }
   }
