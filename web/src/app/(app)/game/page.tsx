@@ -255,8 +255,7 @@ export default function ActiveGamePage() {
     rememberPlayedGameSession(sessionId, getHistoryStorage(isAuthenticated));
   }, [isAuthenticated, sessionId, status]);
 
-  // Only marks session FINISHED if the caller is the host.
-  // Participants notify the server that they left and redirect to their own results.
+  // Concludes session if host, or simply navigates to results with all data preserved
   const finishAndRedirect = useCallback(async (callerIsHost?: boolean) => {
     if (!sessionId || !participantId || redirectingToResults.current) return;
 
@@ -264,15 +263,9 @@ export default function ActiveGamePage() {
     try {
       if (callerIsHost) {
         await fetch(`/api/game/sessions/${sessionId}/results`, { method: "POST" });
-      } else {
-        await fetch(`/api/game/sessions/${sessionId}/leave`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ participantId }),
-        });
       }
     } catch (err) {
-      console.warn("Failed to notify leave/finish:", err);
+      console.warn("Failed to finalize results:", err);
     }
     router.push(`/results?session=${sessionId}&participant=${participantId}`);
   }, [participantId, router, sessionId]);
