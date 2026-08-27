@@ -14,4 +14,5 @@ public interface GameSubmissionRepository extends JpaRepository<GameSubmissionEn
     Optional<GameSubmissionEntity> findByGameRoundIdAndParticipantIdAndAttemptCount(String gameRoundId, String participantId, Integer attemptCount);
     List<GameSubmissionEntity> findByGameRoundId(String gameRoundId);
     List<GameSubmissionEntity> findByGameRoundIdIn(Collection<String> gameRoundIds);
+    List<GameSubmissionEntity> findByParticipantId(String participantId);
 }

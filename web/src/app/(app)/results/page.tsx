@@ -129,11 +129,28 @@ export default function ResultsPage() {
           const participants = Array.isArray(sessionData.participants) ? sessionData.participants : [];
           const standings = Array.isArray(sessionData.standings) ? sessionData.standings : [];
           const rawResults = Array.isArray(resultsData) ? resultsData : [];
-          const mappedResults: ResultEntry[] = rawResults.map((entry: any) => {
+
+          // Sort results by totalScore desc, then correctCount desc
+          const sorted = [...rawResults].sort((a, b) => {
+            const scoreCmp = (b.totalScore ?? 0) - (a.totalScore ?? 0);
+            if (scoreCmp !== 0) return scoreCmp;
+            return (b.correctCount ?? 0) - (a.correctCount ?? 0);
+          });
+
+          let currentRank = 1;
+          const mappedResults: ResultEntry[] = sorted.map((entry: any, index: number) => {
+            if (index > 0) {
+              const prev = sorted[index - 1];
+              const isTied = (prev.totalScore ?? 0) === (entry.totalScore ?? 0) &&
+                             (prev.correctCount ?? 0) === (entry.correctCount ?? 0);
+              if (!isTied) {
+                currentRank = index + 1;
+              }
+            }
             const p = participants.find((part: any) => part.id === entry.participantId);
             const s = standings.find((st: any) => st.participantId === entry.participantId);
             return {
-              rank: entry.rank ?? 1,
+              rank: entry.rank ?? currentRank,
               participantId: entry.participantId,
               displayName: entry.displayName || p?.displayName || "Player",
               avatarUrl: entry.avatarUrl || s?.avatarUrl || p?.avatarUrl || null,
@@ -171,7 +188,11 @@ export default function ResultsPage() {
   if (results.length === 1) {
     podiumOrder = [results[0]];
   } else if (results.length === 2) {
-    podiumOrder = [results[1], results[0]];
+    if (results[0].rank === results[1].rank) {
+      podiumOrder = [results[0], results[1]];
+    } else {
+      podiumOrder = [results[1], results[0]];
+    }
   } else if (results.length >= 3) {
     podiumOrder = [results[1], results[0], results[2]];
   }

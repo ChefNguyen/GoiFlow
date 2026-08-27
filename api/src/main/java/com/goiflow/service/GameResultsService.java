@@ -82,11 +82,22 @@ public class GameResultsService {
             return Integer.compare(b.getCorrectCount(), a.getCorrectCount());
         });
 
-        // Assign ranks and persist
+        // Assign ranks (with standard competition tie-handling) and persist
         List<Map<String, Object>> responseList = new ArrayList<>();
+        int currentRank = 1;
         for (int i = 0; i < computedResults.size(); i++) {
             GameResultEntity res = computedResults.get(i);
-            res.setRank(i + 1);
+            if (i > 0) {
+                GameResultEntity prev = computedResults.get(i - 1);
+                boolean isTied = Objects.equals(prev.getTotalScore(), res.getTotalScore()) &&
+                                 Objects.equals(prev.getCorrectCount(), res.getCorrectCount());
+                if (!isTied) {
+                    currentRank = i + 1;
+                }
+            } else {
+                currentRank = 1;
+            }
+            res.setRank(currentRank);
             GameResultEntity saved = gameResultRepository.save(res);
 
             String displayName = "Player";

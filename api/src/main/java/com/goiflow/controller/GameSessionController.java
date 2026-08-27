@@ -2,6 +2,7 @@ package com.goiflow.controller;
 
 import com.goiflow.entity.auth.UserEntity;
 import com.goiflow.entity.game.GameParticipantEntity;
+import com.goiflow.entity.game.GameResultEntity;
 import com.goiflow.entity.game.GameRoundEntity;
 import com.goiflow.entity.game.GameSessionEntity;
 import com.goiflow.entity.game.GameSubmissionEntity;
@@ -26,6 +27,7 @@ public class GameSessionController {
     private final GameParticipantRepository gameParticipantRepository;
     private final GameRoundRepository gameRoundRepository;
     private final GameSubmissionRepository gameSubmissionRepository;
+    private final GameResultRepository gameResultRepository;
     private final UserRepository userRepository;
     private final GameHistoryService gameHistoryService;
 
@@ -59,15 +61,22 @@ public class GameSessionController {
                 if (p.getId().equals(currentParticipantId) && p.getLeftAt() != null) {
                     p.setLeftAt(null);
                     gameParticipantRepository.save(p);
+                    // Ensure submissions/results from their previous play in this session are cleared so their score starts at 0
+                    List<GameSubmissionEntity> oldSubs = gameSubmissionRepository.findByParticipantId(p.getId());
+                    if (!oldSubs.isEmpty()) {
+                        gameSubmissionRepository.deleteAll(oldSubs);
+                    }
+                    Optional<GameResultEntity> oldRes = gameResultRepository.findByGameSessionIdAndParticipantId(id, p.getId());
+                    oldRes.ifPresent(gameResultRepository::delete);
                     break;
                 }
             }
         }
 
-        // Filter active participants for the live match (only participants who have entered/active in this match, plus host)
+        // Filter active participants for the live match (strictly participants who are currently in the room)
         List<GameParticipantEntity> activeParticipants = (session.getStatus() == com.goiflow.enums.GameSessionStatus.IN_PROGRESS)
                 ? allParticipants.stream()
-                        .filter(p -> p.getLeftAt() == null || p.getId().equals(session.getHostParticipantId()))
+                        .filter(p -> p.getLeftAt() == null)
                         .toList()
                 : allParticipants;
 
@@ -102,9 +111,11 @@ public class GameSessionController {
         // Build standings sorted by score desc for active participants
         List<Map<String, Object>> standings = new ArrayList<>();
         activeParticipants.stream()
-                .sorted((a, b) -> Integer.compare(
-                        scoreMap.getOrDefault(b.getId(), 0),
-                        scoreMap.getOrDefault(a.getId(), 0)))
+                .sorted((a, b) -> {
+                    int scoreCmp = Integer.compare(scoreMap.getOrDefault(b.getId(), 0), scoreMap.getOrDefault(a.getId(), 0));
+                    if (scoreCmp != 0) return scoreCmp;
+                    return Integer.compare(correctMap.getOrDefault(b.getId(), 0), correctMap.getOrDefault(a.getId(), 0));
+                })
                 .forEach(p -> {
                     Map<String, Object> entry = new LinkedHashMap<>();
                     entry.put("participantId", p.getId());
@@ -121,8 +132,18 @@ public class GameSessionController {
                     standings.add(entry);
                 });
 
+        int currentRank = 1;
         for (int i = 0; i < standings.size(); i++) {
-            standings.get(i).put("rank", i + 1);
+            if (i > 0) {
+                int prevScore = (int) standings.get(i - 1).get("totalScore");
+                int currScore = (int) standings.get(i).get("totalScore");
+                int prevCorrect = (int) standings.get(i - 1).get("correctCount");
+                int currCorrect = (int) standings.get(i).get("correctCount");
+                if (prevScore != currScore || prevCorrect != currCorrect) {
+                    currentRank = i + 1;
+                }
+            }
+            standings.get(i).put("rank", currentRank);
         }
 
         // Build active participants list

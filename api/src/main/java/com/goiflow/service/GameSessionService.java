@@ -143,6 +143,14 @@ public class GameSessionService {
                 if (displayName != null && !displayName.isBlank()) {
                     p.setDisplayName(displayName);
                 }
+                // Clear old submissions and results so returning guest starts with 0 points
+                List<GameSubmissionEntity> oldSubs = gameSubmissionRepository.findByParticipantId(p.getId());
+                if (!oldSubs.isEmpty()) {
+                    gameSubmissionRepository.deleteAll(oldSubs);
+                }
+                Optional<GameResultEntity> oldRes = gameResultRepository.findByGameSessionIdAndParticipantId(session.getId(), p.getId());
+                oldRes.ifPresent(gameResultRepository::delete);
+
                 return gameParticipantRepository.save(p);
             }
         }
@@ -183,9 +191,16 @@ public class GameSessionService {
                 session.setFinishedAt(LocalDateTime.now());
                 gameSessionRepository.save(session);
             } else {
-                // Non-host guest leaving: stamp leftAt timestamp so they are removed from active panel, but all their scores & submissions remain 100% preserved
+                // Non-host guest leaving: stamp leftAt timestamp and wipe past submissions so returning to session resets score to 0
                 participant.setLeftAt(LocalDateTime.now());
                 gameParticipantRepository.save(participant);
+
+                List<GameSubmissionEntity> oldSubs = gameSubmissionRepository.findByParticipantId(participant.getId());
+                if (!oldSubs.isEmpty()) {
+                    gameSubmissionRepository.deleteAll(oldSubs);
+                }
+                Optional<GameResultEntity> oldRes = gameResultRepository.findByGameSessionIdAndParticipantId(sessionId, participant.getId());
+                oldRes.ifPresent(gameResultRepository::delete);
             }
         }
     }
@@ -218,12 +233,20 @@ public class GameSessionService {
             gameRoundRepository.deleteAll(rounds);
         }
 
-        // 3. Only keep the host / caller active. Mark other participants as not yet entered until they play again
+        // 3. Transfer Host role to the first participant who returns (callerParticipantId).
+        // That person becomes the new HOST with leftAt = null (ACTIVE).
+        // All other participants (including the old host) become PLAYER with leftAt = now() (INACTIVE until they play again).
         List<GameParticipantEntity> participants = gameParticipantRepository.findByGameSessionId(sessionId);
+        String candidateHostId = callerParticipantId != null ? callerParticipantId : session.getHostParticipantId();
+        boolean callerExists = participants.stream().anyMatch(p -> p.getId().equals(candidateHostId));
+        String finalHostId = (callerExists || participants.isEmpty()) ? candidateHostId : participants.get(0).getId();
+
+        session.setHostParticipantId(finalHostId);
+
         for (GameParticipantEntity p : participants) {
-            boolean isActive = p.getId().equals(session.getHostParticipantId()) ||
-                               (callerParticipantId != null && p.getId().equals(callerParticipantId));
-            p.setLeftAt(isActive ? null : LocalDateTime.now());
+            boolean isNewHost = p.getId().equals(finalHostId);
+            p.setRole(isNewHost ? ParticipantRole.HOST : ParticipantRole.PLAYER);
+            p.setLeftAt(isNewHost ? null : LocalDateTime.now());
             gameParticipantRepository.save(p);
         }
 
