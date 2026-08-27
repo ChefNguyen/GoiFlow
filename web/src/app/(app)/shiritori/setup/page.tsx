@@ -102,148 +102,230 @@ export default function ShiritoriSetupPage() {
   };
 
   return (
-    <main className="mx-auto grid w-full max-w-6xl flex-grow grid-cols-1 items-start gap-16 px-8 pb-16 pt-24 lg:grid-cols-12">
-      <div className="sticky top-28 hidden h-full flex-col justify-center space-y-8 lg:col-span-5 lg:flex">
-        <div className="flex items-center gap-4">
-          <span className="font-[family-name:var(--font-headline)] text-[3.5rem] font-bold leading-none tracking-tight text-[var(--color-primary)]">
-            し
-          </span>
-          <span className="font-[family-name:var(--font-headline)] text-[2rem] font-bold text-[var(--color-secondary)]">
-            りとり
-          </span>
-        </div>
-        <div>
-          <h2 className="mb-2 font-[family-name:var(--font-headline)] text-2xl font-semibold text-[var(--color-primary)]">
-            Configure Shiritori
-          </h2>
-          <p className="max-w-md font-[family-name:var(--font-body)] text-sm leading-relaxed tracking-[0.02em] text-[var(--color-secondary)]">
-            Set up a classic Japanese word-chain room. Chain vocabulary by the last syllable of the previous word. Beware of words ending in <strong className="text-[var(--color-primary)] font-bold">ん</strong>!
-          </p>
-        </div>
-
-        <div className="mt-8 flex gap-4 border-t border-[var(--color-outline-variant)] pt-4 opacity-70">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[var(--color-secondary)]">
-            <span className="inline-block w-2 h-2 bg-[var(--color-primary)]"></span>
-            Word Chain Mode
+    <main className="flex-grow min-h-[calc(100vh-65px)] flex items-center justify-center px-6 py-12" style={{ zoom: 0.9 }}>
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+        {/* Left Side: Conceptual Anchor (Vertically Centered) */}
+        <div className="lg:col-span-5 hidden lg:flex flex-col justify-center space-y-8">
+          <div className="flex items-center gap-3">
+            <h1 className="font-[family-name:var(--font-headline)] text-[3.5rem] font-bold leading-none text-[var(--color-primary)] tracking-tight">
+              し
+            </h1>
+            <span className="font-[family-name:var(--font-headline)] text-[2rem] font-bold text-[var(--color-secondary)]">
+              りとり
+            </span>
+          </div>
+          <div>
+            <h2 className="font-[family-name:var(--font-headline)] text-2xl font-semibold text-[var(--color-primary)] mb-2">
+              Configure Shiritori
+            </h2>
+            <p className="font-[family-name:var(--font-body)] text-[var(--color-secondary)] text-sm leading-relaxed max-w-md tracking-[0.02em]">
+              Set up a classic Japanese word-chain room. Chain vocabulary by the last syllable of the previous word. Beware of words ending in <strong className="text-[var(--color-primary)] font-bold">ん</strong>!
+            </p>
+          </div>
+          <div className="mt-8 border-t border-[var(--color-outline-variant)] pt-4 flex gap-4 opacity-50">
+            <div className="w-8 h-8 bg-[var(--color-surface-container-highest)]"></div>
+            <div className="w-8 h-8 bg-[var(--color-surface-container-high)]"></div>
+            <div className="w-8 h-8 bg-[var(--color-surface-container)]"></div>
           </div>
         </div>
-      </div>
 
-      <div className="bg-[var(--color-surface-container-low)] border border-[var(--color-outline-variant)] p-8 md:p-12 lg:col-span-7 shadow-sm">
-        <div className="mb-8 flex border-b border-[var(--color-outline-variant)]">
-          <button
-            onClick={() => { setActiveTab("create"); setError(null); }}
-            className={cn(
-              "-mb-[1px] px-6 pb-3 font-[family-name:var(--font-label)] text-xs uppercase tracking-widest transition-none",
-              activeTab === "create"
-                ? "border-b-2 border-[var(--color-primary)] text-[var(--color-primary)] font-bold"
-                : "text-[var(--color-secondary)] hover:bg-[var(--color-surface-container)] hover:text-[var(--color-primary)]",
-            )}
-          >
-            Create Room
-          </button>
-          <button
-            onClick={() => { setActiveTab("join"); setError(null); }}
-            className={cn(
-              "-mb-[1px] px-6 pb-3 font-[family-name:var(--font-label)] text-xs uppercase tracking-widest transition-none",
-              activeTab === "join"
-                ? "border-b-2 border-[var(--color-primary)] text-[var(--color-primary)] font-bold"
-                : "text-[var(--color-secondary)] hover:bg-[var(--color-surface-container)] hover:text-[var(--color-primary)]",
-            )}
-          >
-            Join Room
-          </button>
-        </div>
-
-        {error && (
-          <div className="mb-6 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        {activeTab === "create" && (
-          <div className="space-y-8">
-            <div className="flex flex-col space-y-2">
-              <label className="font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
-                Participant Name
-              </label>
-              <Input
-                type="text"
-                placeholder="Enter your display name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="font-[family-name:var(--font-body)] text-base text-[var(--color-primary)] placeholder:text-[var(--color-outline)]"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <label className="flex justify-between font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
-                <span>Bot opponents</span>
-                <span className="font-bold text-[var(--color-primary)]">{botPlayers} {botPlayers === 1 ? "Bot" : "Bots"}</span>
-              </label>
-              <div className="flex items-center gap-4 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] p-2">
-                <button
-                  type="button"
-                  onClick={() => setBotPlayers((prev) => Math.max(0, prev - 1))}
-                  className="flex h-10 w-10 items-center justify-center border border-[var(--color-outline)] text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
-                >
-                  <span className="material-symbols-outlined">remove</span>
-                </button>
-                <div className="flex-grow text-center font-[family-name:var(--font-body)] text-base text-[var(--color-primary)]">
-                  {botPlayers === 0 ? "No Bots (Multiplayer Only)" : `${botPlayers} AI Opponents`}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setBotPlayers((prev) => Math.min(8, prev + 1))}
-                  className="flex h-10 w-10 items-center justify-center border border-[var(--color-outline)] text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
-                >
-                  <span className="material-symbols-outlined">add</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <label className="flex justify-between font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
-                <span>Time per turn</span>
-                <span className="font-bold text-[var(--color-primary)]">{timePerTurn}s</span>
-              </label>
-              <div className="flex items-center gap-4 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] p-2">
-                <button
-                  type="button"
-                  onClick={() => setTimePerTurn((prev) => Math.max(5, prev - 5))}
-                  className="flex h-10 w-10 items-center justify-center border border-[var(--color-outline)] text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
-                >
-                  <span className="material-symbols-outlined">remove</span>
-                </button>
-                <div className="flex-grow text-center font-[family-name:var(--font-body)] text-base text-[var(--color-primary)]">
-                  {timePerTurn} Seconds
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setTimePerTurn((prev) => Math.min(60, prev + 5))}
-                  className="flex h-10 w-10 items-center justify-center border border-[var(--color-outline)] text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
-                >
-                  <span className="material-symbols-outlined">add</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center border-b border-[var(--color-outline-variant)] pb-4">
-              <Checkbox
-                id="private-shiritori"
-                className="mr-3"
-                checked={isPrivate}
-                onChange={(e) => setIsPrivate(e.target.checked)}
-              />
-              <label
-                htmlFor="private-shiritori"
-                className="cursor-pointer select-none font-[family-name:var(--font-body)] text-sm text-[var(--color-primary)]"
+        {/* Right Side: Interaction Area (Exact Equal Height for both tabs) */}
+        <div className="lg:col-span-7 bg-[var(--color-surface-container-low)] border border-[var(--color-outline-variant)] p-8 md:p-12 h-[600px] flex flex-col justify-between shadow-sm">
+          <div className="flex flex-col flex-1">
+            {/* Tab Navigation */}
+            <div className="flex mb-8 border-b border-[var(--color-outline-variant)] shrink-0">
+              <button
+                onClick={() => { setActiveTab("create"); setError(null); }}
+                className={cn(
+                  "font-[family-name:var(--font-label)] text-xs uppercase tracking-widest pb-3 px-6 -mb-[1px] transition-none",
+                  activeTab === "create"
+                    ? "text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] font-bold"
+                    : "text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-container)]",
+                )}
               >
-                Private Room
-              </label>
+                Create Room
+              </button>
+              <button
+                onClick={() => { setActiveTab("join"); setError(null); }}
+                className={cn(
+                  "font-[family-name:var(--font-label)] text-xs uppercase tracking-widest pb-3 px-6 -mb-[1px] transition-none",
+                  activeTab === "join"
+                    ? "text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] font-bold"
+                    : "text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-container)]",
+                )}
+              >
+                Join Room
+              </button>
             </div>
 
-            <div className="pt-4">
+            {error && (
+              <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm shrink-0">
+                {error}
+              </div>
+            )}
+
+            {/* Tab 1: Create Room */}
+            {activeTab === "create" && (
+              <div className="space-y-6 flex-1 overflow-y-auto pr-1">
+                <div className="flex flex-col space-y-2">
+                  <label className="font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
+                    Participant Name
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter your display name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="font-[family-name:var(--font-body)] text-base text-[var(--color-primary)] placeholder:text-[var(--color-outline)]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex justify-between font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
+                    <span>Bot opponents</span>
+                    <span className="font-bold text-[var(--color-primary)]">{botPlayers} {botPlayers === 1 ? "Bot" : "Bots"}</span>
+                  </label>
+                  <div className="flex items-center gap-4 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] p-2">
+                    <button
+                      type="button"
+                      onClick={() => setBotPlayers((prev) => Math.max(0, prev - 1))}
+                      className="flex h-10 w-10 items-center justify-center border border-[var(--color-outline)] text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
+                    >
+                      <span className="material-symbols-outlined">remove</span>
+                    </button>
+                    <div className="flex-grow text-center font-[family-name:var(--font-body)] text-sm text-[var(--color-primary)] font-medium">
+                      {botPlayers === 0 ? "No Bots (Multiplayer Only)" : `${botPlayers} AI Opponents`}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBotPlayers((prev) => Math.min(8, prev + 1))}
+                      className="flex h-10 w-10 items-center justify-center border border-[var(--color-outline)] text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
+                    >
+                      <span className="material-symbols-outlined">add</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex justify-between font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
+                    <span>Time per turn</span>
+                    <span className="font-bold text-[var(--color-primary)]">{timePerTurn}s</span>
+                  </label>
+                  <div className="flex items-center gap-4 border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] p-2">
+                    <button
+                      type="button"
+                      onClick={() => setTimePerTurn((prev) => Math.max(5, prev - 5))}
+                      className="flex h-10 w-10 items-center justify-center border border-[var(--color-outline)] text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
+                    >
+                      <span className="material-symbols-outlined">remove</span>
+                    </button>
+                    <div className="flex-grow text-center font-[family-name:var(--font-body)] text-sm text-[var(--color-primary)] font-medium">
+                      {timePerTurn} Seconds
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTimePerTurn((prev) => Math.min(60, prev + 5))}
+                      className="flex h-10 w-10 items-center justify-center border border-[var(--color-outline)] text-[var(--color-primary)] transition-none hover:bg-[var(--color-surface-container)]"
+                    >
+                      <span className="material-symbols-outlined">add</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center border-t border-[var(--color-outline-variant)] pt-3">
+                  <Checkbox
+                    id="private-shiritori"
+                    className="mr-3"
+                    checked={isPrivate}
+                    onChange={(e) => setIsPrivate(e.target.checked)}
+                  />
+                  <label
+                    htmlFor="private-shiritori"
+                    className="cursor-pointer select-none font-[family-name:var(--font-body)] text-sm text-[var(--color-primary)]"
+                  >
+                    Private Room
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Join Room */}
+            {activeTab === "join" && (
+              <div className="space-y-6 flex-1 flex flex-col justify-between">
+                <div className="space-y-6">
+                  <div className="flex flex-col space-y-2">
+                    <label className="font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
+                      Participant Name
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Enter your display name"
+                      value={joinDisplayName}
+                      onChange={(e) => setJoinDisplayName(e.target.value)}
+                      className="font-[family-name:var(--font-body)] text-base text-[var(--color-primary)] placeholder:text-[var(--color-outline)]"
+                    />
+                  </div>
+
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
+                        6-Digit Room Code
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handlePasteCode}
+                        className="inline-flex items-center gap-1 font-[family-name:var(--font-label)] text-[11px] font-semibold text-[var(--color-secondary)] hover:text-[var(--color-primary)] transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">content_paste</span>
+                        Paste Code
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        autoFocus
+                        maxLength={6}
+                        value={roomCode}
+                        onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                        className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer text-center uppercase"
+                      />
+
+                      <div className="grid grid-cols-6 gap-2">
+                        {Array.from({ length: 6 }).map((_, index) => {
+                          const char = roomCode[index] || "";
+                          const isCurrent = roomCode.length === index;
+
+                          return (
+                            <div
+                              key={index}
+                              className={cn(
+                                "flex h-14 items-center justify-center border bg-[var(--color-surface-container-lowest)] font-[family-name:var(--font-headline)] text-2xl font-bold transition-all",
+                                isCurrent
+                                  ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20"
+                                  : char
+                                    ? "border-[var(--color-primary)] text-[var(--color-primary)]"
+                                    : "border-[var(--color-outline-variant)] text-[var(--color-outline)]"
+                              )}
+                            >
+                              {char || <span className="opacity-20">—</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <p className="font-[family-name:var(--font-body)] text-[11px] text-[var(--color-secondary)] text-center">
+                      Click boxes or type to enter the alphanumeric code
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Button at bottom */}
+          <div className="pt-6 shrink-0">
+            {activeTab === "create" ? (
               <Button
                 variant="primary"
                 className="w-full justify-center gap-2 py-4 font-[family-name:var(--font-label)] text-sm uppercase tracking-widest !text-white"
@@ -257,77 +339,7 @@ export default function ShiritoriSetupPage() {
                   </span>
                 )}
               </Button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "join" && (
-          <div className="space-y-8">
-            <div className="flex flex-col space-y-2">
-              <label className="font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
-                Participant Name
-              </label>
-              <Input
-                type="text"
-                placeholder="Enter your display name"
-                value={joinDisplayName}
-                onChange={(e) => setJoinDisplayName(e.target.value)}
-                className="font-[family-name:var(--font-body)] text-base text-[var(--color-primary)] placeholder:text-[var(--color-outline)]"
-              />
-            </div>
-
-            <div className="flex flex-col space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="font-[family-name:var(--font-label)] text-xs font-medium uppercase tracking-[0.05em] text-[var(--color-secondary)]">
-                  6-Digit Room Code
-                </label>
-                <button
-                  type="button"
-                  onClick={handlePasteCode}
-                  className="inline-flex items-center gap-1 font-[family-name:var(--font-label)] text-[11px] font-semibold text-[var(--color-secondary)] hover:text-[var(--color-primary)] transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[14px]">content_paste</span>
-                  Paste Code
-                </button>
-              </div>
-
-              {/* Segmented Visual Boxes */}
-              <div className="relative">
-                <input
-                  type="text"
-                  autoFocus
-                  maxLength={6}
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                  className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer text-center uppercase"
-                />
-
-                <div className="grid grid-cols-6 gap-2">
-                  {Array.from({ length: 6 }).map((_, index) => {
-                    const char = roomCode[index] || "";
-                    const isCurrent = roomCode.length === index;
-
-                    return (
-                      <div
-                        key={index}
-                        className={cn(
-                          "flex h-14 items-center justify-center border bg-[var(--color-surface-container-lowest)] font-[family-name:var(--font-headline)] text-2xl font-bold transition-all",
-                          isCurrent
-                            ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20"
-                            : char
-                              ? "border-[var(--color-primary)] text-[var(--color-primary)]"
-                              : "border-[var(--color-outline-variant)] text-[var(--color-outline)]"
-                        )}
-                      >
-                        {char || <span className="opacity-20">—</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4">
+            ) : (
               <Button
                 variant="primary"
                 className="w-full justify-center gap-2 py-4 font-[family-name:var(--font-label)] text-sm uppercase tracking-widest !text-white"
@@ -341,9 +353,9 @@ export default function ShiritoriSetupPage() {
                   </span>
                 )}
               </Button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </main>
   );
