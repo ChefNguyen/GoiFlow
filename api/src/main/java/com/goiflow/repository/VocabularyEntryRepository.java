@@ -15,5 +15,17 @@ public interface VocabularyEntryRepository extends JpaRepository<VocabularyEntry
     @Query(value = "SELECT * FROM \"VocabularyEntry\" WHERE \"jlptLevel\"::text = :#{#level.name()} ORDER BY RANDOM() LIMIT :count", nativeQuery = true)
     List<VocabularyEntryEntity> findRandomByJlptLevel(@Param("level") JlptLevel level, @Param("count") int count);
 
+    @Query("SELECT v FROM VocabularyEntryEntity v WHERE LOWER(v.term) = LOWER(:input) OR LOWER(v.reading) = LOWER(:input)")
+    List<VocabularyEntryEntity> findByTermOrReading(@Param("input") String input);
+
+    @Query(value = "SELECT * FROM \"VocabularyEntry\" WHERE \"reading\" NOT LIKE '%ん' AND \"reading\" NOT LIKE '%ン' AND LENGTH(\"reading\") >= 2 ORDER BY RANDOM() LIMIT 1", nativeQuery = true)
+    VocabularyEntryEntity findRandomStarterWord();
+
+    @Query(value = "SELECT * FROM \"VocabularyEntry\" WHERE (\"reading\" LIKE CONCAT(:startKana, '%') OR \"term\" LIKE CONCAT(:startKana, '%')) AND \"reading\" NOT LIKE '%ん' ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
+    List<VocabularyEntryEntity> findWordsStartingWith(@Param("startKana") String startKana, @Param("limit") int limit);
+
+    @Query(value = "SELECT * FROM \"VocabularyEntry\" WHERE \"reading\" LIKE CONCAT(:startKana, '%') OR \"term\" LIKE CONCAT(:startKana, '%') ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
+    List<VocabularyEntryEntity> findAllWordsStartingWith(@Param("startKana") String startKana, @Param("limit") int limit);
+
     long countByJlptLevel(JlptLevel jlptLevel);
 }
