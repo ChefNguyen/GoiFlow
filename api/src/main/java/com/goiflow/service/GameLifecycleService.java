@@ -35,19 +35,13 @@ public class GameLifecycleService {
             throw new IllegalStateException("Session is not in progress");
         }
 
-        // 1. Resolve all currently active rounds for this session
-        List<GameRoundEntity> existingRounds = gameRoundRepository
-                .findByGameSessionIdOrderByRoundNumberAsc(sessionId);
-
-        for (GameRoundEntity r : existingRounds) {
-            if (r.getStatus() == RoundStatus.ACTIVE) {
-                r.setStatus(RoundStatus.RESOLVED);
-                if (r.getResolvedAt() == null) {
+        // 1. Resolve currently active round for this session
+        gameRoundRepository.findFirstByGameSessionIdAndStatusOrderByRoundNumberDesc(sessionId, RoundStatus.ACTIVE)
+                .ifPresent(r -> {
+                    r.setStatus(RoundStatus.RESOLVED);
                     r.setResolvedAt(LocalDateTime.now());
-                }
-                gameRoundRepository.save(r);
-            }
-        }
+                    gameRoundRepository.save(r);
+                });
 
         // 2. Compute next round number safely (continuous gameplay until user explicitly finishes)
         int currentRoundNum = session.getCurrentRoundNumber() != null ? session.getCurrentRoundNumber() : 0;

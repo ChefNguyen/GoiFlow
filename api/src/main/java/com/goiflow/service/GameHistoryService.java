@@ -25,6 +25,7 @@ public class GameHistoryService {
     private final VocabularyEntryRepository vocabularyEntryRepository;
     private final UserRepository userRepository;
     private final ContentSelectionService contentSelectionService;
+    private final ShiritoriService shiritoriService;
 
     @Transactional(readOnly = true)
     public Map<String, Object> queryHistory(List<String> sessionIds, String userId, Integer limit) {
@@ -59,143 +60,166 @@ public class GameHistoryService {
         Map<String, GameSessionEntity> sessionMap = gameSessionRepository.findAllById(effectiveSessionIds).stream()
                 .collect(Collectors.toMap(GameSessionEntity::getId, s -> s, (a, b) -> a));
 
-        if (sessionMap.isEmpty()) {
-            Map<String, Object> emptyRes = new HashMap<>();
-            emptyRes.put("history", Collections.emptyList());
-            emptyRes.put("limit", maxLimit);
-            return emptyRes;
+        List<Map<String, Object>> historyList = new ArrayList<>();
+
+        // Process Shiritori sessions history
+        for (String sid : effectiveSessionIds) {
+            GameSessionEntity session = sessionMap.get(sid);
+            List<ShiritoriService.ShiritoriWordItem> shiritoriWords = shiritoriService.getChainHistoryForSession(sid);
+            if (shiritoriWords != null && !shiritoriWords.isEmpty()) {
+                String roomCode = session != null && session.getRoomCode() != null ? session.getRoomCode() : "—";
+                for (int i = 0; i < shiritoriWords.size(); i++) {
+                    ShiritoriService.ShiritoriWordItem item = shiritoriWords.get(i);
+                    Map<String, Object> hItem = new HashMap<>();
+                    hItem.put("id", item.getId());
+                    hItem.put("sessionId", sid);
+                    hItem.put("roomCode", roomCode);
+                    hItem.put("roundId", "shiritori_" + item.getId());
+                    hItem.put("roundNumber", i + 1);
+                    hItem.put("promptText", item.getWord());
+                    hItem.put("promptType", "SHIRITORI");
+                    hItem.put("rawAnswer", item.getWord());
+                    hItem.put("isCorrect", true);
+                    hItem.put("attemptCount", 1);
+                    hItem.put("participantId", item.getParticipantId());
+                    hItem.put("participantName", item.getParticipantName());
+                    hItem.put("participantAvatarUrl", item.getParticipantAvatarUrl());
+                    hItem.put("submittedAt", item.getSubmittedAt() != null ? item.getSubmittedAt().toString() : LocalDateTime.now().toString());
+                    hItem.put("vocabularyEntryId", null);
+
+                    Map<String, Object> details = new HashMap<>();
+                    details.put("term", item.getWord());
+                    details.put("reading", item.getReading());
+                    details.put("meaningsVi", item.getMeaning() != null && !item.getMeaning().isBlank() ? List.of(item.getMeaning()) : Collections.emptyList());
+                    hItem.put("details", details);
+
+                    historyList.add(hItem);
+                }
+            }
         }
 
         // 2. Batch fetch rounds for all sessions
         List<GameRoundEntity> allRounds = gameRoundRepository.findByGameSessionIdIn(sessionMap.keySet());
-        if (allRounds.isEmpty()) {
-            Map<String, Object> emptyRes = new HashMap<>();
-            emptyRes.put("history", Collections.emptyList());
-            emptyRes.put("limit", maxLimit);
-            return emptyRes;
-        }
+        if (!allRounds.isEmpty()) {
+            List<String> roundIds = allRounds.stream().map(GameRoundEntity::getId).toList();
 
-        List<String> roundIds = allRounds.stream().map(GameRoundEntity::getId).toList();
+            // 3. Batch fetch submissions for all rounds
+            List<GameSubmissionEntity> allSubs = gameSubmissionRepository.findByGameRoundIdIn(roundIds);
+            Map<String, List<GameSubmissionEntity>> subsByRoundId = allSubs.stream()
+                    .collect(Collectors.groupingBy(GameSubmissionEntity::getGameRoundId));
 
-        // 3. Batch fetch submissions for all rounds
-        List<GameSubmissionEntity> allSubs = gameSubmissionRepository.findByGameRoundIdIn(roundIds);
-        Map<String, List<GameSubmissionEntity>> subsByRoundId = allSubs.stream()
-                .collect(Collectors.groupingBy(GameSubmissionEntity::getGameRoundId));
+            // 4. Collect & Batch fetch vocabularies
+            Set<String> vocabIds = allRounds.stream()
+                    .map(GameRoundEntity::getVocabularyEntryId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Map<String, VocabularyEntryEntity> vocabMap = vocabIds.isEmpty() ? Collections.emptyMap() :
+                    vocabularyEntryRepository.findAllById(vocabIds).stream()
+                            .collect(Collectors.toMap(VocabularyEntryEntity::getId, v -> v, (a, b) -> a));
 
-        // 4. Collect & Batch fetch vocabularies
-        Set<String> vocabIds = allRounds.stream()
-                .map(GameRoundEntity::getVocabularyEntryId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<String, VocabularyEntryEntity> vocabMap = vocabIds.isEmpty() ? Collections.emptyMap() :
-                vocabularyEntryRepository.findAllById(vocabIds).stream()
-                        .collect(Collectors.toMap(VocabularyEntryEntity::getId, v -> v, (a, b) -> a));
+            // 5. Collect & Batch fetch participants & their user avatars
+            Set<String> participantIds = allSubs.stream()
+                    .map(GameSubmissionEntity::getParticipantId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Map<String, GameParticipantEntity> participantMap = participantIds.isEmpty() ? Collections.emptyMap() :
+                    gameParticipantRepository.findAllById(participantIds).stream()
+                            .collect(Collectors.toMap(GameParticipantEntity::getId, p -> p, (a, b) -> a));
 
-        // 5. Collect & Batch fetch participants & their user avatars
-        Set<String> participantIds = allSubs.stream()
-                .map(GameSubmissionEntity::getParticipantId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<String, GameParticipantEntity> participantMap = participantIds.isEmpty() ? Collections.emptyMap() :
-                gameParticipantRepository.findAllById(participantIds).stream()
-                        .collect(Collectors.toMap(GameParticipantEntity::getId, p -> p, (a, b) -> a));
+            Set<String> userIds = participantMap.values().stream()
+                    .map(GameParticipantEntity::getUserId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Map<String, com.goiflow.entity.auth.UserEntity> userMap = userIds.isEmpty() ? Collections.emptyMap() :
+                    userRepository.findAllById(userIds).stream()
+                            .collect(Collectors.toMap(com.goiflow.entity.auth.UserEntity::getId, u -> u, (a, b) -> a));
 
-        Set<String> userIds = participantMap.values().stream()
-                .map(GameParticipantEntity::getUserId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<String, com.goiflow.entity.auth.UserEntity> userMap = userIds.isEmpty() ? Collections.emptyMap() :
-                userRepository.findAllById(userIds).stream()
-                        .collect(Collectors.toMap(com.goiflow.entity.auth.UserEntity::getId, u -> u, (a, b) -> a));
+            // 6. In-memory assembly
+            for (GameRoundEntity r : allRounds) {
+                GameSessionEntity session = sessionMap.get(r.getGameSessionId());
+                if (session == null) continue;
 
-        // 6. In-memory assembly
-        List<Map<String, Object>> historyList = new ArrayList<>();
+                List<GameSubmissionEntity> subs = subsByRoundId.getOrDefault(r.getId(), Collections.emptyList());
+                VocabularyEntryEntity vocab = r.getVocabularyEntryId() != null ? vocabMap.get(r.getVocabularyEntryId()) : null;
 
-        for (GameRoundEntity r : allRounds) {
-            GameSessionEntity session = sessionMap.get(r.getGameSessionId());
-            if (session == null) continue;
+                if (!subs.isEmpty()) {
+                    for (GameSubmissionEntity sub : subs) {
+                        boolean isCorrect = Boolean.TRUE.equals(sub.getIsCorrect());
+                        int attemptCount = sub.getAttemptCount() != null ? sub.getAttemptCount() : 1;
 
-            List<GameSubmissionEntity> subs = subsByRoundId.getOrDefault(r.getId(), Collections.emptyList());
-            VocabularyEntryEntity vocab = r.getVocabularyEntryId() != null ? vocabMap.get(r.getVocabularyEntryId()) : null;
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("id", sub.getId());
+                        item.put("sessionId", session.getId());
+                        item.put("roomCode", session.getRoomCode() != null ? session.getRoomCode() : "—");
+                        item.put("roundId", r.getId());
+                        item.put("roundNumber", r.getRoundNumber() != null ? r.getRoundNumber() : 1);
+                        item.put("promptText", r.getPromptText() != null ? r.getPromptText() : "");
+                        item.put("promptType", r.getPromptType() != null ? r.getPromptType().name() : "KANJI_TO_READING");
+                        item.put("rawAnswer", sub.getRawAnswer() != null ? sub.getRawAnswer() : "—");
+                        item.put("isCorrect", isCorrect);
+                        item.put("attemptCount", attemptCount);
 
-            if (!subs.isEmpty()) {
-                for (GameSubmissionEntity sub : subs) {
-                    boolean isCorrect = Boolean.TRUE.equals(sub.getIsCorrect());
-                    int attemptCount = sub.getAttemptCount() != null ? sub.getAttemptCount() : 1;
-                    boolean isRoundResolved = r.getResolvedAt() != null;
+                        String participantName = "Player";
+                        String participantAvatarUrl = null;
+                        GameParticipantEntity p = participantMap.get(sub.getParticipantId());
+                        if (p != null) {
+                            if (p.getDisplayName() != null && !p.getDisplayName().isBlank()) {
+                                participantName = p.getDisplayName();
+                            }
+                            if (p.getUserId() != null) {
+                                com.goiflow.entity.auth.UserEntity u = userMap.get(p.getUserId());
+                                if (u != null) {
+                                    participantAvatarUrl = u.getImage();
+                                }
+                            }
+                        }
+                        item.put("participantId", sub.getParticipantId());
+                        item.put("participantName", participantName);
+                        item.put("participantAvatarUrl", participantAvatarUrl);
 
+                        String submittedAt = LocalDateTime.now().toString();
+                        if (sub.getSubmittedAt() != null) {
+                            submittedAt = sub.getSubmittedAt().toString();
+                        } else if (r.getCreatedAt() != null) {
+                            submittedAt = r.getCreatedAt().toString();
+                        } else if (r.getStartedAt() != null) {
+                            submittedAt = r.getStartedAt().toString();
+                        }
+                        item.put("submittedAt", submittedAt);
+                        item.put("vocabularyEntryId", r.getVocabularyEntryId());
+
+                        // Attach details ONLY on correct answer or final attempt (attempt >= 3) to prevent duplicate details
+                        if (vocab != null && (isCorrect || attemptCount >= 3)) {
+                            item.put("details", contentSelectionService.toVocabularyHistoryDetails(vocab));
+                        }
+
+                        historyList.add(item);
+                    }
+                } else if (r.getResolvedAt() != null) {
+                    // Exactly when all participants have attempt = 0 (no submissions recorded for this resolved round)
                     Map<String, Object> item = new HashMap<>();
-                    item.put("id", sub.getId());
+                    item.put("id", "round_" + r.getId());
                     item.put("sessionId", session.getId());
                     item.put("roomCode", session.getRoomCode() != null ? session.getRoomCode() : "—");
                     item.put("roundId", r.getId());
                     item.put("roundNumber", r.getRoundNumber() != null ? r.getRoundNumber() : 1);
                     item.put("promptText", r.getPromptText() != null ? r.getPromptText() : "");
                     item.put("promptType", r.getPromptType() != null ? r.getPromptType().name() : "KANJI_TO_READING");
-                    item.put("rawAnswer", sub.getRawAnswer() != null ? sub.getRawAnswer() : "—");
-                    item.put("isCorrect", isCorrect);
-                    item.put("attemptCount", attemptCount);
-
-                    String participantName = "Player";
-                    String participantAvatarUrl = null;
-                    GameParticipantEntity p = participantMap.get(sub.getParticipantId());
-                    if (p != null) {
-                        if (p.getDisplayName() != null && !p.getDisplayName().isBlank()) {
-                            participantName = p.getDisplayName();
-                        }
-                        if (p.getUserId() != null) {
-                            com.goiflow.entity.auth.UserEntity u = userMap.get(p.getUserId());
-                            if (u != null) {
-                                participantAvatarUrl = u.getImage();
-                            }
-                        }
-                    }
-                    item.put("participantId", sub.getParticipantId());
-                    item.put("participantName", participantName);
-                    item.put("participantAvatarUrl", participantAvatarUrl);
-
-                    String submittedAt = LocalDateTime.now().toString();
-                    if (sub.getSubmittedAt() != null) {
-                        submittedAt = sub.getSubmittedAt().toString();
-                    } else if (r.getCreatedAt() != null) {
-                        submittedAt = r.getCreatedAt().toString();
-                    } else if (r.getStartedAt() != null) {
-                        submittedAt = r.getStartedAt().toString();
-                    }
-                    item.put("submittedAt", submittedAt);
+                    item.put("rawAnswer", "—");
+                    item.put("isCorrect", false);
+                    item.put("attemptCount", 0);
+                    item.put("participantId", null);
+                    item.put("participantName", "—");
+                    item.put("participantAvatarUrl", null);
+                    item.put("submittedAt", r.getResolvedAt().toString());
                     item.put("vocabularyEntryId", r.getVocabularyEntryId());
 
-                    // Only reveal vocabulary details if the answer was correct, or failed 3 times, or the round is resolved
-                    if (vocab != null && (isCorrect || attemptCount >= 3 || isRoundResolved)) {
+                    if (vocab != null) {
                         item.put("details", contentSelectionService.toVocabularyHistoryDetails(vocab));
                     }
 
                     historyList.add(item);
                 }
-            } else if (r.getResolvedAt() != null) {
-                // Exactly when all participants have attempt = 0 (no submissions recorded for this resolved round)
-                Map<String, Object> item = new HashMap<>();
-                item.put("id", "round_" + r.getId());
-                item.put("sessionId", session.getId());
-                item.put("roomCode", session.getRoomCode() != null ? session.getRoomCode() : "—");
-                item.put("roundId", r.getId());
-                item.put("roundNumber", r.getRoundNumber() != null ? r.getRoundNumber() : 1);
-                item.put("promptText", r.getPromptText() != null ? r.getPromptText() : "");
-                item.put("promptType", r.getPromptType() != null ? r.getPromptType().name() : "KANJI_TO_READING");
-                item.put("rawAnswer", "—");
-                item.put("isCorrect", false);
-                item.put("attemptCount", 0);
-                item.put("participantId", null);
-                item.put("participantName", "—");
-                item.put("participantAvatarUrl", null);
-                item.put("submittedAt", r.getResolvedAt().toString());
-                item.put("vocabularyEntryId", r.getVocabularyEntryId());
-
-                if (vocab != null) {
-                    item.put("details", contentSelectionService.toVocabularyHistoryDetails(vocab));
-                }
-
-                historyList.add(item);
             }
         }
 

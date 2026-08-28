@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 public class ContentSelectionService {
 
     private final VocabularyEntryRepository vocabularyEntryRepository;
+    private final RedisCacheService redisCacheService;
     private static final Pattern HIRAGANA_PATTERN = Pattern.compile("^[?-?????\\s]+$");
 
     public String normalizeAnswer(String raw) {
@@ -40,7 +41,30 @@ public class ContentSelectionService {
     }
 
     public GameRoundEntity selectAndCreateNextRound(String sessionId, JlptLevel level, int nextRoundNumber, List<String> excludedVocabIds) {
-        List<VocabularyEntryEntity> entries = vocabularyEntryRepository.findRandomByJlptLevel(level, 10);
+        List<VocabularyEntryEntity> entries = new ArrayList<>();
+        List<String> randomIds = redisCacheService.getRandomVocabIds(level, 10);
+
+        if (randomIds != null && !randomIds.isEmpty()) {
+            for (String id : randomIds) {
+                VocabularyEntryEntity cached = redisCacheService.getCachedVocabularyEntry(id);
+                if (cached != null) {
+                    entries.add(cached);
+                } else {
+                    vocabularyEntryRepository.findById(id).ifPresent(e -> {
+                        entries.add(e);
+                        redisCacheService.cacheVocabularyEntry(e);
+                    });
+                }
+            }
+        }
+
+        // Fallback to direct DB query if Redis returned empty or is offline
+        if (entries.isEmpty()) {
+            List<VocabularyEntryEntity> dbEntries = vocabularyEntryRepository.findRandomByJlptLevel(level, 10);
+            entries.addAll(dbEntries);
+            dbEntries.forEach(redisCacheService::cacheVocabularyEntry);
+        }
+
         VocabularyEntryEntity selected = entries.stream()
                 .filter(e -> excludedVocabIds == null || !excludedVocabIds.contains(e.getId()))
                 .findFirst()

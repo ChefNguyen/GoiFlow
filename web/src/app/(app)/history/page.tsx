@@ -315,7 +315,7 @@ export default function HistoryPage() {
               <div className="w-32 shrink-0">Kanji / Term</div>
               <div className="w-56 shrink-0">Reading / Sino-Viet</div>
               <div className="flex-1">Meaning</div>
-              <div className="w-32 text-right">Status</div>
+              <div className="w-40 shrink-0 text-right">Status</div>
             </div>
 
             <div className="flex flex-col">
@@ -386,21 +386,25 @@ export default function HistoryPage() {
                       {meaningText}
                     </div>
 
-                    {/* Result Badge */}
-                    <div className="mt-2 flex shrink-0 items-center justify-between md:mt-0 md:w-32 md:flex-col md:items-end">
-                      <span
-                        className={
-                          entry.isCorrect
-                            ? "inline-flex items-center gap-1 font-[family-name:var(--font-label)] text-xs font-bold uppercase tracking-wider text-emerald-600"
-                            : "inline-flex items-center gap-1 font-[family-name:var(--font-label)] text-xs font-bold uppercase tracking-wider text-rose-600"
-                        }
-                      >
-                        <span className="material-symbols-outlined text-[14px]">
-                          {entry.isCorrect ? "check_circle" : "cancel"}
+                    {/* Result Badge & Timestamp */}
+                    <div className="mt-2 flex shrink-0 items-center justify-between gap-0.5 md:mt-0 md:w-40 md:flex-col md:items-end">
+                      {entry.promptType === "SHIRITORI" ? (
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-[family-name:var(--font-label)] text-xs font-bold uppercase tracking-wider text-[var(--color-primary)]">
+                          <span className="material-symbols-outlined text-[16px]">link</span>
+                          Shiritori
                         </span>
-                        {entry.isCorrect ? "Correct" : "Needs Review"}
-                      </span>
-                      <span className="text-[11px] text-[var(--color-secondary)]">
+                      ) : entry.isCorrect ? (
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-[family-name:var(--font-label)] text-xs font-bold uppercase tracking-wider text-emerald-600">
+                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                          Correct
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-[family-name:var(--font-label)] text-xs font-bold uppercase tracking-wider text-rose-600">
+                          <span className="material-symbols-outlined text-[16px]">cancel</span>
+                          Incorrect
+                        </span>
+                      )}
+                      <span className="whitespace-nowrap text-[11px] text-[var(--color-secondary)]">
                         {formatReviewedAt(entry.submittedAt)}
                       </span>
                     </div>

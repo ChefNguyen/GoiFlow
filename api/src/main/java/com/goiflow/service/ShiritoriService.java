@@ -37,6 +37,7 @@ public class ShiritoriService {
     private final GameSessionRepository gameSessionRepository;
     private final GameParticipantRepository gameParticipantRepository;
     private final VocabularyEntryRepository vocabularyEntryRepository;
+    private final RedisCacheService redisCacheService;
 
     private static final String ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -111,6 +112,15 @@ public class ShiritoriService {
         private LocalDateTime lastBotTurnAt;
     }
 
+    public List<ShiritoriWordItem> getChainHistoryForSession(String sessionId) {
+        if (sessionId == null) return Collections.emptyList();
+        ShiritoriState state = sessionStates.get(sessionId);
+        if (state == null) return Collections.emptyList();
+        synchronized (state) {
+            return new ArrayList<>(state.getChainHistory());
+        }
+    }
+
     @Transactional
     public Map<String, Object> createSession(CreateShiritoriRequest request) {
         String roomCode = generateUniqueRoomCode();
@@ -174,8 +184,19 @@ public class ShiritoriService {
                     .build());
         }
 
-        // Pick Random Starter Word
-        VocabularyEntryEntity starterWord = vocabularyEntryRepository.findRandomStarterWord();
+        // Pick Random Starter Word (via Redis Set O(1) with DB fallback)
+        VocabularyEntryEntity starterWord = null;
+        String starterWordId = redisCacheService.getRandomStarterWordId();
+        if (starterWordId != null) {
+            starterWord = redisCacheService.getCachedVocabularyEntry(starterWordId);
+            if (starterWord == null) {
+                starterWord = vocabularyEntryRepository.findById(starterWordId).orElse(null);
+                if (starterWord != null) redisCacheService.cacheVocabularyEntry(starterWord);
+            }
+        }
+        if (starterWord == null) {
+            starterWord = vocabularyEntryRepository.findRandomStarterWord();
+        }
         String initialTerm = starterWord != null ? starterWord.getTerm() : "りんご";
         String initialReading = starterWord != null ? starterWord.getReading() : "りんご";
         String initialMeaning = starterWord != null && starterWord.getMeaningsVi() != null && !starterWord.getMeaningsVi().isEmpty()

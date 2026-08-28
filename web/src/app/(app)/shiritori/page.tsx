@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Crown, Check, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  getHistoryStorage,
+  migrateGuestHistoryToLocalStorage,
+  rememberPlayedGameSession,
+} from "@/features/game/history-storage";
 
 interface ShiritoriWordItem {
   id: string;
@@ -118,6 +123,15 @@ export default function ShiritoriPage() {
       if (stored) setParticipantId(stored);
     }
   }, [participantId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const isAuthenticated = authSession?.user != null;
+    if (isAuthenticated) {
+      migrateGuestHistoryToLocalStorage();
+    }
+    rememberPlayedGameSession(sessionId, getHistoryStorage(isAuthenticated));
+  }, [authSession?.user, sessionId]);
 
   const fetchState = useCallback(async () => {
     if (!sessionId) return;

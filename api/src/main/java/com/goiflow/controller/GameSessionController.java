@@ -7,6 +7,7 @@ import com.goiflow.entity.game.GameRoundEntity;
 import com.goiflow.entity.game.GameSessionEntity;
 import com.goiflow.entity.game.GameSubmissionEntity;
 import com.goiflow.repository.*;
+import com.goiflow.service.ActiveGamePlayService;
 import com.goiflow.service.GameHistoryService;
 import com.goiflow.service.GameSessionService;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class GameSessionController {
     private final GameResultRepository gameResultRepository;
     private final UserRepository userRepository;
     private final GameHistoryService gameHistoryService;
+    private final ActiveGamePlayService activeGamePlayService;
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getSession(
@@ -220,6 +222,7 @@ public class GameSessionController {
         if (effectivePid == null && body != null && body.get("participantId") != null) {
             effectivePid = body.get("participantId").toString();
         }
+        activeGamePlayService.resetSessionState(id);
         GameSessionEntity session = gameSessionService.restartSession(id, effectivePid);
         return ResponseEntity.ok(session);
     }

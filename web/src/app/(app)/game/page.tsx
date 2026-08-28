@@ -18,8 +18,11 @@ type RoundState = {
   roundNumber: number;
   promptText: string;
   promptType: string;
-  startedAt: string;
+  startedAt?: string;
   vocabularyEntryId?: string | null;
+  validAnswers?: string[];
+  details?: VocabularyHistoryDetails;
+  nextUpcomingRound?: RoundState | null;
 };
 
 type LeaderboardEntry = {
@@ -87,11 +90,51 @@ type RoundResponse = Partial<RoundState> & {
   status?: "WAITING" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
   currentRoundNumber?: number;
   maxRounds?: number;
+  nextUpcomingRound?: RoundState | null;
   error?: string;
 };
 
-function isRoundState(value: RoundResponse): value is RoundState {
-  return Boolean(value.roundId && value.roundNumber && value.promptText && value.promptType && value.startedAt);
+function isRoundState(value: RoundResponse | null | undefined): value is RoundState {
+  return Boolean(value && value.roundId && value.promptText);
+}
+
+function normalizeClientAnswer(input: string): string {
+  if (!input) return "";
+  return input
+    .trim()
+    .toLowerCase()
+    .normalize("NFKC")
+    .replace(/[\s\-_]+/g, " ");
+}
+
+function removeAccents(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
+
+function matchesAnyValidAnswer(input: string, validAnswers?: string[]): boolean {
+  if (!input || !validAnswers || validAnswers.length === 0) return false;
+  const nInput = normalizeClientAnswer(input);
+  const nInputNoAcc = removeAccents(nInput);
+  const nInputCompact = nInput.replace(/\s+/g, "");
+  const nInputCompactNoAcc = nInputNoAcc.replace(/\s+/g, "");
+
+  return validAnswers.some((v) => {
+    const nv = normalizeClientAnswer(v);
+    const nvNoAcc = removeAccents(nv);
+    const nvCompact = nv.replace(/\s+/g, "");
+    const nvCompactNoAcc = nvNoAcc.replace(/\s+/g, "");
+
+    return (
+      nv === nInput ||
+      nvNoAcc === nInputNoAcc ||
+      nvCompact === nInputCompact ||
+      nvCompactNoAcc === nInputCompactNoAcc
+    );
+  });
 }
 
 function UserAvatarBox({
@@ -232,6 +275,8 @@ export default function ActiveGamePage() {
   const loadingRef = useRef(false);
   const pendingActionRef = useRef<"submit" | "skip" | null>(null);
   const advancingRoundRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const nextUpcomingRoundRef = useRef<RoundState | null>(null);
 
   useEffect(() => {
     roundRef.current = round;
@@ -377,9 +422,17 @@ export default function ActiveGamePage() {
         const seenKeys = new Set<string>();
         const merged: HistoryItem[] = [];
 
-        // 1. Add all authoritative server items from PostgreSQL (each attempt is uniquely keyed by promptText + participantId + attemptCount)
+        // Build index of known details from local cache
+        const prevDetailsByPrompt: Record<string, HistoryItem["details"]> = {};
+        for (const local of prevHistory) {
+          if (local.details && local.promptText) {
+            prevDetailsByPrompt[local.promptText] = local.details;
+          }
+        }
+
+        // 1. Add all authoritative server items from PostgreSQL
         for (const item of filteredServerItems) {
-          const attemptKey = `${item.promptText}_${item.participantId ?? "ghost"}_att${item.attemptCount ?? 0}`;
+          const attemptKey = `${item.promptText}_${item.participantId ?? "ghost"}_att${item.attemptCount ?? 1}`;
           if (!seenKeys.has(attemptKey)) {
             seenKeys.add(attemptKey);
             merged.push(item);
@@ -388,7 +441,6 @@ export default function ActiveGamePage() {
 
         // 2. Local optimistic cache: strictly scoped to CURRENT user only,
         // and only when the server has not yet returned this specific attempt.
-        // For all other participants, data is 100% driven by PostgreSQL to ensure seamless N-player sync.
         for (const local of prevHistory) {
           if (!pid || local.participantId !== pid) continue;
           const localKey = `${local.promptText}_${local.participantId}_att${local.attemptCount ?? 1}`;
@@ -678,6 +730,9 @@ export default function ActiveGamePage() {
 
       if (getRes.ok && isRoundState(getData)) {
         setRound(getData);
+        if (getData.nextUpcomingRound) {
+          nextUpcomingRoundRef.current = getData.nextUpcomingRound;
+        }
         setAnswer("");
         return;
       }
@@ -698,6 +753,9 @@ export default function ActiveGamePage() {
       }
 
       setRound(data);
+      if (data.nextUpcomingRound) {
+        nextUpcomingRoundRef.current = data.nextUpcomingRound;
+      }
       setAnswer("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load round");
@@ -754,27 +812,60 @@ export default function ActiveGamePage() {
       await handleSkip();
       return;
     }
-    setLoading(true);
     setPendingAction("submit");
     setError(null);
 
-    try {
-      const currentAttemptNumber = attempts + 1;
-      const res = await fetch(`/api/game/sessions/${sessionId}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawAnswer: answer,
-          participantId,
-          attemptCount: currentAttemptNumber,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Submit failed");
+    const currentAttemptNumber = attempts + 1;
+    const currentAnswer = answer.trim();
+    const currentRoundSnapshot = round;
 
-      if (data.isCorrect) {
+    // Fast clear input and preserve focus
+    setAnswer("");
+    inputRef.current?.focus();
+
+    // Client-side instant answer check against pre-fetched validAnswers
+    const isInstantMatch = matchesAnyValidAnswer(currentAnswer, currentRoundSnapshot.validAnswers);
+
+    // OPTIMISTIC 0.0ms SWITCH: If answer is correct OR if it's the 3rd attempt, switch INSTANTLY in 0.0ms!
+    let nextPreloaded: RoundState | null = null;
+    const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
+
+    if (isInstantMatch || currentAttemptNumber >= 3) {
+      if (nextUpcomingRoundRef.current && isRoundState(nextUpcomingRoundRef.current)) {
+        nextPreloaded = nextUpcomingRoundRef.current;
+        nextUpcomingRoundRef.current = null;
+        setRound(nextPreloaded);
         setAttempts(0);
-        // Award 1 point to current player on right panel
+      }
+
+      // 0.0ms INSTANT DETAILS RENDERING on Word History panel!
+      const instantEntry: HistoryItem = {
+        id: `local_${Date.now()}_att${currentAttemptNumber}`,
+        promptText: currentRoundSnapshot.promptText,
+        rawAnswer: currentAnswer,
+        isCorrect: isInstantMatch,
+        attemptCount: currentAttemptNumber,
+        submittedAt: new Date().toISOString(),
+        participantId,
+        participantName: currentParticipantName || authSession?.user?.name || "Player",
+        participantAvatarUrl: currentAvatar,
+        vocabularyEntryId: currentRoundSnapshot.vocabularyEntryId,
+        details: currentRoundSnapshot.details,
+      };
+
+      setHistory((prev) => [
+        instantEntry,
+        ...prev.filter(
+          (i) =>
+            !(
+              i.promptText === currentRoundSnapshot.promptText &&
+              i.participantId === participantId &&
+              i.attemptCount === currentAttemptNumber
+            )
+        ),
+      ].slice(0, 50));
+
+      if (isInstantMatch) {
         setLeaderboard((prev) =>
           prev.map((entry) =>
             entry.participantId === participantId
@@ -786,15 +877,65 @@ export default function ActiveGamePage() {
               : entry
           )
         );
+      }
+    } else {
+      // Incorrect attempt 1 or 2 -> Keep word on screen, show red border to allow retry
+      setAttempts(currentAttemptNumber);
 
-        const vocabularyEntryId = data.vocabularyEntryId ?? round.vocabularyEntryId;
-        const details = await fetchVocabularyHistoryDetails(vocabularyEntryId, data.details ?? undefined);
-        const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
+      // LIVE UPDATE in Word History: Display attempt 1 or attempt 2 separately without overriding previous attempt!
+      const ongoingEntry: HistoryItem = {
+        id: `local_${Date.now()}_att${currentAttemptNumber}`,
+        promptText: currentRoundSnapshot.promptText,
+        rawAnswer: currentAnswer,
+        isCorrect: false,
+        attemptCount: currentAttemptNumber,
+        submittedAt: new Date().toISOString(),
+        participantId,
+        participantName: currentParticipantName || authSession?.user?.name || "Player",
+        participantAvatarUrl: currentAvatar,
+        vocabularyEntryId: currentRoundSnapshot.vocabularyEntryId,
+        details: undefined, // No details for intermediate attempts!
+      };
+
+      setHistory((prev) => [
+        ongoingEntry,
+        ...prev.filter(
+          (i) =>
+            !(
+              i.promptText === currentRoundSnapshot.promptText &&
+              i.participantId === participantId &&
+              i.attemptCount === currentAttemptNumber
+            )
+        ),
+      ].slice(0, 50));
+    }
+
+    try {
+      const res = await fetch(`/api/game/sessions/${sessionId}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rawAnswer: currentAnswer,
+          participantId,
+          attemptCount: currentAttemptNumber,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Submit failed");
+
+      if (data.nextUpcomingRound) {
+        nextUpcomingRoundRef.current = data.nextUpcomingRound;
+      }
+
+      if (data.isCorrect) {
+        setAttempts(0);
+        const vocabularyEntryId = data.vocabularyEntryId ?? currentRoundSnapshot.vocabularyEntryId;
+        const details = data.details || currentRoundSnapshot.details || undefined;
 
         const newEntry: HistoryItem = {
-          id: `${data.submissionId}_att${currentAttemptNumber}`,
-          promptText: round.promptText,
-          rawAnswer: answer,
+          id: `${data.submissionId}`,
+          promptText: currentRoundSnapshot.promptText,
+          rawAnswer: currentAnswer,
           isCorrect: true,
           attemptCount: currentAttemptNumber,
           submittedAt: new Date().toISOString(),
@@ -810,61 +951,48 @@ export default function ActiveGamePage() {
           ...prev.filter(
             (i) =>
               !(
-                i.promptText === round.promptText &&
+                i.promptText === currentRoundSnapshot.promptText &&
                 i.participantId === participantId &&
                 i.attemptCount === currentAttemptNumber
               )
           ),
         ].slice(0, 50));
 
-        setAnswer("");
-        if (data.shouldAdvance) {
-          await advanceToNextRound();
+        // Switch to next round if not already optimistically switched
+        if (!nextPreloaded) {
+          if (nextUpcomingRoundRef.current && isRoundState(nextUpcomingRoundRef.current)) {
+            const nextOne = nextUpcomingRoundRef.current;
+            nextUpcomingRoundRef.current = null;
+            setRound(nextOne);
+          } else if (data.nextRound) {
+            if (data.nextRound.status === "FINISHED") {
+              void finishAndRedirect();
+              return;
+            }
+            if (isRoundState(data.nextRound)) {
+              setRound(data.nextRound);
+            }
+          } else if (data.shouldAdvance) {
+            await advanceToNextRound();
+          }
         }
-        await hydrateSession();
+
+        // Hydrate session in background without blocking UI thread
+        void hydrateSession();
       } else {
         // Incorrect answer
-        const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
         if (currentAttemptNumber < 3) {
           setAttempts(currentAttemptNumber);
-
-          const newEntry: HistoryItem = {
-            id: `${data.submissionId}_att${currentAttemptNumber}`,
-            promptText: round.promptText,
-            rawAnswer: answer,
-            isCorrect: false,
-            attemptCount: currentAttemptNumber,
-            submittedAt: new Date().toISOString(),
-            participantId,
-            participantName: currentParticipantName || authSession?.user?.name || "Player",
-            participantAvatarUrl: currentAvatar,
-            vocabularyEntryId: round.vocabularyEntryId,
-            details: undefined,
-          };
-
-          setHistory((prev) => [
-            newEntry,
-            ...prev.filter(
-              (i) =>
-                !(
-                  i.promptText === round.promptText &&
-                  i.participantId === participantId &&
-                  i.attemptCount === currentAttemptNumber
-                )
-            ),
-          ].slice(0, 50));
-
-          setAnswer("");
         } else {
-          // 3rd incorrect attempt -> reveal details, add to history, advance round
+          // 3rd incorrect attempt -> reveal details, add to history, and advance round
           setAttempts(0);
-          const vocabularyEntryId = data.vocabularyEntryId ?? round.vocabularyEntryId;
-          const details = await fetchVocabularyHistoryDetails(vocabularyEntryId, data.details ?? undefined);
+          const vocabularyEntryId = data.vocabularyEntryId ?? currentRoundSnapshot.vocabularyEntryId;
+          const details = data.details || currentRoundSnapshot.details || undefined;
 
           const newEntry: HistoryItem = {
-            id: `${data.submissionId}_att3`,
-            promptText: round.promptText,
-            rawAnswer: answer,
+            id: `${data.submissionId}`,
+            promptText: currentRoundSnapshot.promptText,
+            rawAnswer: currentAnswer,
             isCorrect: false,
             attemptCount: 3,
             submittedAt: new Date().toISOString(),
@@ -880,25 +1008,41 @@ export default function ActiveGamePage() {
             ...prev.filter(
               (i) =>
                 !(
-                  i.promptText === round.promptText &&
+                  i.promptText === currentRoundSnapshot.promptText &&
                   i.participantId === participantId &&
                   i.attemptCount === 3
                 )
             ),
           ].slice(0, 50));
 
-          setAnswer("");
-          if (data.shouldAdvance) {
-            await advanceToNextRound();
+          // If not optimistically switched before, advance to next round
+          if (!nextPreloaded) {
+            if (nextUpcomingRoundRef.current && isRoundState(nextUpcomingRoundRef.current)) {
+              const nextOne = nextUpcomingRoundRef.current;
+              nextUpcomingRoundRef.current = null;
+              setRound(nextOne);
+            } else if (data.nextRound) {
+              if (data.nextRound.status === "FINISHED") {
+                void finishAndRedirect();
+                return;
+              }
+              if (isRoundState(data.nextRound)) {
+                setRound(data.nextRound);
+              }
+            } else if (data.shouldAdvance) {
+              await advanceToNextRound();
+            }
           }
-          await hydrateSession();
+
+          // Hydrate session in background without blocking UI thread
+          void hydrateSession();
         }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submit failed");
     } finally {
-      setLoading(false);
       setPendingAction(null);
+      inputRef.current?.focus();
     }
   }
 
@@ -936,8 +1080,45 @@ export default function ActiveGamePage() {
       setError(null);
       setAttempts(0);
 
+      const currentRoundSnapshot = roundRef.current;
+      const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
+
+      // OPTIMISTIC 0.0ms SKIP SWITCH: Switch to preloaded round instantly
+      const nextPreloaded = nextUpcomingRoundRef.current;
+      if (nextPreloaded && isRoundState(nextPreloaded)) {
+        nextUpcomingRoundRef.current = null;
+        setRound(nextPreloaded);
+        setAttempts(0);
+        setAnswer("");
+      }
+
+      // 0.0ms INSTANT SKIPPED DETAILS INSERTION:
+      const instantSkipEntry: HistoryItem = {
+        id: `skip_${Date.now()}`,
+        promptText: currentRoundSnapshot.promptText,
+        rawAnswer: "—",
+        isCorrect: false,
+        attemptCount: 3,
+        submittedAt: new Date().toISOString(),
+        participantId,
+        participantName: currentParticipantName || authSession?.user?.name || "Player",
+        participantAvatarUrl: currentAvatar,
+        vocabularyEntryId: currentRoundSnapshot.vocabularyEntryId,
+        details: currentRoundSnapshot.details,
+      };
+
+      setHistory((prev) => [
+        instantSkipEntry,
+        ...prev.filter(
+          (i) =>
+            !(
+              i.promptText === instantSkipEntry.promptText &&
+              i.participantId === participantId
+            )
+        ),
+      ].slice(0, 50));
+
       try {
-        const currentRound = roundRef.current;
         const response = await fetch(`/api/game/sessions/${sessionId}/rounds`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -954,9 +1135,15 @@ export default function ActiveGamePage() {
           return;
         }
 
-        setRound(data);
-        setAnswer("");
-        await hydrateSession();
+        if (data.nextUpcomingRound) {
+          nextUpcomingRoundRef.current = data.nextUpcomingRound;
+        }
+
+        if (!nextPreloaded && isRoundState(data)) {
+          setRound(data);
+          setAnswer("");
+        }
+        void hydrateSession();
       } catch (err) {
         setError(err instanceof Error ? err.message : `Failed to skip round (${reasonLabel})`);
       } finally {
@@ -965,7 +1152,7 @@ export default function ActiveGamePage() {
         advancingRoundRef.current = false;
       }
     },
-    [finishAndRedirect, hydrateSession, participantId, sessionId]
+    [finishAndRedirect, hydrateSession, leaderboard, participantId, sessionId]
   );
 
   async function handleSkip() {
@@ -1197,6 +1384,7 @@ export default function ActiveGamePage() {
               Enter reading...
             </label>
             <Input
+              ref={inputRef}
               id="kanji-input"
               autoFocus
               autoComplete="off"
