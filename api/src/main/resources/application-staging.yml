@@ -1,0 +1,40 @@
+# =============================================================================
+# 🧪 GoiFlow Backend — STAGING CONFIGURATION (application-staging.yml)
+# =============================================================================
+
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require}
+    username: ${DATABASE_USER:postgres.qqzerpwyzfaadzajmutx}
+    password: ${DATABASE_PASSWORD:}
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:google-client-id-placeholder}
+            client-secret: ${GOOGLE_CLIENT_SECRET:google-client-secret-placeholder}
+          facebook:
+            client-id: ${FACEBOOK_APP_ID:facebook-app-id-placeholder}
+            client-secret: ${FACEBOOK_APP_SECRET:facebook-app-secret-placeholder}
+
+app:
+  cors:
+    allowed-origins:
+      - "http://localhost:3000"
+      - "https://goiflow-prod-git-staging-chefnguyens-projects.vercel.app"
+      - "https://*.vercel.app"
+
+logging:
+  level:
+    com.goiflow: INFO
+    org.flywaydb: INFO
