@@ -70,6 +70,8 @@ public class GameSessionController {
                     }
                     Optional<GameResultEntity> oldRes = gameResultRepository.findByGameSessionIdAndParticipantId(id, p.getId());
                     oldRes.ifPresent(gameResultRepository::delete);
+                    // Reset In-Memory RAM score and live history
+                    activeGamePlayService.resetParticipantScore(id, p.getId());
                     break;
                 }
             }
@@ -112,8 +114,8 @@ public class GameSessionController {
 
         ActiveGamePlayService.ActiveGameState activeState = activeGamePlayService.getActiveGameState(id);
         if (activeState != null) {
-            activeState.getParticipantScores().forEach((pid, s) -> scoreMap.merge(pid, s, Math::max));
-            activeState.getParticipantCorrectCounts().forEach((pid, c) -> correctMap.merge(pid, c, Math::max));
+            activeState.getParticipantScores().forEach(scoreMap::put);
+            activeState.getParticipantCorrectCounts().forEach(correctMap::put);
         }
 
         // Build standings sorted by score desc for active participants

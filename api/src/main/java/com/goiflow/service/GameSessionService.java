@@ -32,6 +32,7 @@ public class GameSessionService {
     private final GameSubmissionRepository gameSubmissionRepository;
     private final GameResultRepository gameResultRepository;
     private final UserRepository userRepository;
+    private final ActiveGamePlayService activeGamePlayService;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     public String generateRoomCode() {
@@ -150,6 +151,7 @@ public class GameSessionService {
                 }
                 Optional<GameResultEntity> oldRes = gameResultRepository.findByGameSessionIdAndParticipantId(session.getId(), p.getId());
                 oldRes.ifPresent(gameResultRepository::delete);
+                activeGamePlayService.resetParticipantScore(session.getId(), p.getId());
 
                 return gameParticipantRepository.save(p);
             }
@@ -168,6 +170,7 @@ public class GameSessionService {
                 }
                 Optional<GameResultEntity> oldRes = gameResultRepository.findByGameSessionIdAndParticipantId(session.getId(), p.getId());
                 oldRes.ifPresent(gameResultRepository::delete);
+                activeGamePlayService.resetParticipantScore(session.getId(), p.getId());
                 return gameParticipantRepository.save(p);
             }
         }
@@ -196,6 +199,7 @@ public class GameSessionService {
 
     @Transactional
     public void leaveSession(String sessionId, String participantId) {
+        activeGamePlayService.resetParticipantScore(sessionId, participantId);
         GameSessionEntity session = gameSessionRepository.findById(sessionId).orElse(null);
         if (session == null) return;
 
@@ -229,6 +233,7 @@ public class GameSessionService {
 
     @Transactional
     public GameSessionEntity restartSession(String sessionId, String callerParticipantId) {
+        activeGamePlayService.resetSessionState(sessionId);
         GameSessionEntity session = gameSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 

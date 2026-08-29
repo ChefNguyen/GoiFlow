@@ -296,6 +296,20 @@ public class ActiveGamePlayService {
         }
     }
 
+    public void resetParticipantScore(String sessionId, String participantId) {
+        if (sessionId == null || participantId == null) return;
+        ActiveGameState state = activeGameStates.get(sessionId);
+        if (state != null) {
+            synchronized (state) {
+                state.getParticipantScores().put(participantId, 0);
+                state.getParticipantCorrectCounts().put(participantId, 0);
+                if (state.getLiveHistory() != null) {
+                    state.getLiveHistory().removeIf(item -> participantId.equals(item.get("participantId")));
+                }
+            }
+        }
+    }
+
     public void resetSessionState(String sessionId) {
         if (sessionId != null) {
             activeGameStates.remove(sessionId);
