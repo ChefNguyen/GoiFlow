@@ -644,9 +644,14 @@ export default function ActiveGamePage() {
     if (isRoundState(data)) {
       setError(null);
       const currentRound = roundRef.current;
-      if (!currentRound || data.roundId !== currentRound.roundId) {
+      // Only update if server round is strictly newer than client round (never regress to an older round!)
+      if (!currentRound || (data.roundNumber && data.roundNumber > currentRound.roundNumber)) {
         setRound(data);
+        if (data.nextUpcomingRound) {
+          nextUpcomingRoundRef.current = data.nextUpcomingRound;
+        }
         setAnswer("");
+        setAttempts(0);
       }
       return data;
     }
@@ -689,6 +694,9 @@ export default function ActiveGamePage() {
       }
 
       setRound(data as RoundState);
+      if ((data as RoundState).nextUpcomingRound) {
+        nextUpcomingRoundRef.current = (data as RoundState).nextUpcomingRound ?? null;
+      }
       setAnswer("");
       setAttempts(0);
       return data;
@@ -792,7 +800,7 @@ export default function ActiveGamePage() {
           } else if (
             data.status === "IN_PROGRESS" &&
             typeof data.currentRoundNumber === "number" &&
-            data.currentRoundNumber !== currentRound.roundNumber
+            data.currentRoundNumber > currentRound.roundNumber
           ) {
             void refreshRoundFromServer().catch(console.error);
           }

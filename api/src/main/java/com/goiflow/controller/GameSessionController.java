@@ -110,6 +110,12 @@ public class GameSessionController {
             }
         }
 
+        ActiveGamePlayService.ActiveGameState activeState = activeGamePlayService.getActiveGameState(id);
+        if (activeState != null) {
+            activeState.getParticipantScores().forEach((pid, s) -> scoreMap.merge(pid, s, Math::max));
+            activeState.getParticipantCorrectCounts().forEach((pid, c) -> correctMap.merge(pid, c, Math::max));
+        }
+
         // Build standings sorted by score desc for active participants
         List<Map<String, Object>> standings = new ArrayList<>();
         activeParticipants.stream()
@@ -164,14 +170,21 @@ public class GameSessionController {
             return m;
         }).toList();
 
+        int effectiveRoundNumber = activeState != null && activeState.getCurrentRoundNumber() != null
+                ? activeState.getCurrentRoundNumber()
+                : (session.getCurrentRoundNumber() != null ? session.getCurrentRoundNumber() : 1);
+        String effectiveStatus = activeState != null && activeState.getStatus() != null
+                ? activeState.getStatus().name()
+                : session.getStatus().name();
+
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("id", session.getId());
         response.put("roomCode", session.getRoomCode());
-        response.put("status", session.getStatus().name());
+        response.put("status", effectiveStatus);
         response.put("gameMode", session.getGameMode().name());
         response.put("jlptLevel", session.getJlptLevel().name());
         response.put("maxRounds", session.getMaxRounds());
-        response.put("currentRoundNumber", session.getCurrentRoundNumber());
+        response.put("currentRoundNumber", effectiveRoundNumber);
         response.put("timePerPromptSeconds", session.getTimePerPromptSeconds());
         response.put("isPrivate", session.getIsPrivate());
         response.put("hostParticipantId", session.getHostParticipantId());

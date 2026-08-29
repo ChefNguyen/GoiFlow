@@ -203,6 +203,11 @@ public class ActiveGamePlayService {
         }
     }
 
+    public ActiveGameState getActiveGameState(String sessionId) {
+        if (sessionId == null) return null;
+        return activeGameStates.get(sessionId);
+    }
+
     public void resetSessionState(String sessionId) {
         if (sessionId != null) {
             activeGameStates.remove(sessionId);
