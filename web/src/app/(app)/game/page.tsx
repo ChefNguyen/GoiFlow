@@ -146,10 +146,11 @@ function UserAvatarBox({
   displayName?: string | null;
   size?: "sm" | "md";
 }) {
-  const initial = (displayName || "U").trim().charAt(0).toUpperCase();
+  const isHyphen = !displayName || displayName === "—" || displayName === "-";
+  const initial = isHyphen ? "—" : displayName.trim().charAt(0).toUpperCase();
   const sizeClass = size === "sm" ? "h-5 w-5 text-[9px]" : "h-7 w-7 text-[10px]";
 
-  if (avatarUrl) {
+  if (avatarUrl && !isHyphen) {
     return (
       <img
         src={avatarUrl}
@@ -161,7 +162,11 @@ function UserAvatarBox({
 
   return (
     <div
-      className={`flex ${sizeClass} shrink-0 items-center justify-center border border-[var(--color-primary)] bg-[var(--color-primary)] font-bold text-[var(--color-on-primary)] rounded-none select-none`}
+      className={`flex ${sizeClass} shrink-0 items-center justify-center border ${
+        isHyphen
+          ? "border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)] text-[var(--color-secondary)] font-medium"
+          : "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)] font-bold"
+      } rounded-none select-none`}
     >
       {initial}
     </div>
@@ -1088,8 +1093,9 @@ export default function ActiveGamePage() {
       setError(null);
       setAttempts(0);
 
+      const isTimeout = reasonLabel === "timeout" || reasonLabel === "Time out";
       const currentRoundSnapshot = roundRef.current;
-      const currentAvatar = leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null;
+      const currentAvatar = isTimeout ? null : (leaderboard.find((e) => e.participantId === participantId)?.avatarUrl ?? null);
 
       // OPTIMISTIC 0.0ms SKIP SWITCH: Switch to preloaded round instantly
       const nextPreloaded = nextUpcomingRoundRef.current;
@@ -1100,17 +1106,17 @@ export default function ActiveGamePage() {
         setAnswer("");
       }
 
-      // 0.0ms INSTANT SKIPPED DETAILS INSERTION:
+      // 0.0ms INSTANT SKIPPED / TIMEOUT DETAILS INSERTION:
       const instantSkipEntry: HistoryItem = {
-        id: `skip_${Date.now()}`,
+        id: `${isTimeout ? "timeout" : "skip"}_${Date.now()}`,
         promptText: currentRoundSnapshot.promptText,
         rawAnswer: "—",
         isCorrect: false,
-        attemptCount: 3,
+        attemptCount: isTimeout ? 0 : 3,
         submittedAt: new Date().toISOString(),
-        participantId,
-        participantName: currentParticipantName || authSession?.user?.name || "Player",
-        participantAvatarUrl: currentAvatar,
+        participantId: isTimeout ? null : participantId,
+        participantName: isTimeout ? "—" : (currentParticipantName || authSession?.user?.name || "Player"),
+        participantAvatarUrl: isTimeout ? null : currentAvatar,
         vocabularyEntryId: currentRoundSnapshot.vocabularyEntryId,
         details: currentRoundSnapshot.details,
       };
@@ -1121,7 +1127,7 @@ export default function ActiveGamePage() {
           (i) =>
             !(
               i.promptText === instantSkipEntry.promptText &&
-              i.participantId === participantId
+              (isTimeout ? i.participantId == null : i.participantId === participantId)
             )
         ),
       ].slice(0, 50));
@@ -1252,15 +1258,26 @@ export default function ActiveGamePage() {
               item.details?.meaningsVi?.[0] ||
               item.rawAnswer ||
               "—";
-            const tertiaryLabel = item.details?.meaningsVi?.[0] || item.rawAnswer || "—";
-            const isUserSelf = Boolean(participantId && item.participantId === participantId);
-            const leaderboardEntry = item.participantId ? leaderboard.find((e) => e.participantId === item.participantId) : null;
-            const rawName = item.participantName || leaderboardEntry?.displayName;
+            const isTimeoutOrNoUser =
+              item.participantId == null ||
+              item.participantName === "—" ||
+              item.participantName === "-" ||
+              item.rawAnswer === "timeout" ||
+              item.id?.startsWith("timeout_") ||
+              (item.rawAnswer === "—" && (item.attemptCount === 0 || !item.participantId));
+
+            const isUserSelf = Boolean(!isTimeoutOrNoUser && participantId && item.participantId === participantId);
+            const leaderboardEntry = (!isTimeoutOrNoUser && item.participantId) ? leaderboard.find((e) => e.participantId === item.participantId) : null;
+            const rawName = isTimeoutOrNoUser ? "—" : (item.participantName || leaderboardEntry?.displayName);
             const isGenericName = !rawName || rawName.toLowerCase() === "you" || rawName === "Player";
-            const displayNameToShow = isGenericName
-              ? (isUserSelf ? (currentParticipantName || authSession?.user?.name || "Player") : (leaderboardEntry?.displayName || "Player"))
-              : rawName;
-            const avatarUrlToShow = item.participantAvatarUrl || leaderboardEntry?.avatarUrl || (isUserSelf ? currentUserAvatar : null);
+            const displayNameToShow = isTimeoutOrNoUser
+              ? "—"
+              : (isGenericName
+                  ? (isUserSelf ? (currentParticipantName || authSession?.user?.name || "Player") : (leaderboardEntry?.displayName || "Player"))
+                  : rawName);
+            const avatarUrlToShow = isTimeoutOrNoUser
+              ? null
+              : (item.participantAvatarUrl || leaderboardEntry?.avatarUrl || (isUserSelf ? currentUserAvatar : null));
 
             const rawAmHanViet = item.details?.amHanViet?.[0];
             const amHanVietLabel = rawAmHanViet && rawAmHanViet !== "—" && rawAmHanViet !== "-" ? rawAmHanViet : null;
