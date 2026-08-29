@@ -809,7 +809,7 @@ export default function ActiveGamePage() {
         .finally(() => {
           pollingSession.current = false;
         });
-    }, 1500);
+    }, 700);
 
     return () => window.clearInterval(intervalId);
   }, [finishAndRedirect, hydrateSession, loadOrCreateRound, participantId, refreshRoundFromServer, sessionId]);

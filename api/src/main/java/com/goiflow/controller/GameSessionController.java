@@ -193,9 +193,14 @@ public class GameSessionController {
         response.put("participants", participantList);
         response.put("standings", standings);
 
-        // Include global synchronized room history (up to 50 items for multiplayer scalability)
-        Map<String, Object> historyQuery = gameHistoryService.queryHistory(List.of(id), null, 50);
-        response.put("history", historyQuery.get("history"));
+        // Include global synchronized room history (served in 0ms from RAM during match, fallback to DB after completion)
+        List<Map<String, Object>> liveHistory = activeGamePlayService.getLiveHistory(id);
+        if (liveHistory != null && !liveHistory.isEmpty()) {
+            response.put("history", liveHistory);
+        } else {
+            Map<String, Object> historyQuery = gameHistoryService.queryHistory(List.of(id), null, 50);
+            response.put("history", historyQuery.get("history"));
+        }
 
         response.put("startedAt", session.getStartedAt());
         response.put("finishedAt", session.getFinishedAt());

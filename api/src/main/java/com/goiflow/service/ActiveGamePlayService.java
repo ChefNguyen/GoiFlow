@@ -2,6 +2,8 @@ package com.goiflow.service;
 
 import com.goiflow.dto.request.SubmitAnswerRequest;
 import com.goiflow.entity.content.VocabularyEntryEntity;
+import com.goiflow.entity.auth.UserEntity;
+import com.goiflow.entity.game.GameParticipantEntity;
 import com.goiflow.entity.game.GameRoundEntity;
 import com.goiflow.entity.game.GameSessionEntity;
 import com.goiflow.entity.game.GameSubmissionEntity;
@@ -24,6 +26,7 @@ import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Slf4j
 @Service
@@ -34,6 +37,8 @@ public class ActiveGamePlayService {
     private final GameRoundRepository gameRoundRepository;
     private final VocabularyEntryRepository vocabularyEntryRepository;
     private final GameSubmissionRepository gameSubmissionRepository;
+    private final GameParticipantRepository gameParticipantRepository;
+    private final UserRepository userRepository;
     private final ContentSelectionService contentSelectionService;
     private final RedisCacheService redisCacheService;
 
@@ -79,6 +84,12 @@ public class ActiveGamePlayService {
         private Map<String, Integer> participantCorrectCounts = new ConcurrentHashMap<>();
         @Builder.Default
         private Set<String> usedVocabIds = ConcurrentHashMap.newKeySet();
+
+        // Realtime In-Memory live history buffer for zero-latency multiplayer sync
+        @Builder.Default
+        private List<Map<String, Object>> liveHistory = new CopyOnWriteArrayList<>();
+        @Builder.Default
+        private Map<String, Map<String, String>> participantProfileCache = new ConcurrentHashMap<>();
     }
 
     /**
@@ -132,6 +143,28 @@ public class ActiveGamePlayService {
             // Asynchronously persist submission to PostgreSQL without blocking HTTP response thread
             String submissionId = CuidUtils.generate();
             persistSubmissionAsync(submissionId, roundId, participantId, rawAnswer, normalizedInput, isCorrect, currentAttempt);
+
+            // Record live item into in-memory history buffer (0ms sync for other participants)
+            Map<String, String> profile = getParticipantProfile(state, participantId);
+            Map<String, Object> liveItem = new LinkedHashMap<>();
+            liveItem.put("id", submissionId);
+            liveItem.put("sessionId", sessionId);
+            liveItem.put("roundId", roundId);
+            liveItem.put("roundNumber", state.getCurrentRoundNumber() != null ? state.getCurrentRoundNumber() : 1);
+            liveItem.put("promptText", state.getCurrentPromptText() != null ? state.getCurrentPromptText() : "");
+            liveItem.put("promptType", state.getCurrentPromptType() != null ? state.getCurrentPromptType().name() : "KANJI_TO_READING");
+            liveItem.put("rawAnswer", rawAnswer);
+            liveItem.put("isCorrect", isCorrect);
+            liveItem.put("attemptCount", currentAttempt);
+            liveItem.put("participantId", participantId);
+            liveItem.put("participantName", profile.getOrDefault("name", "Player"));
+            liveItem.put("participantAvatarUrl", profile.get("avatarUrl"));
+            liveItem.put("submittedAt", LocalDateTime.now().toString());
+            liveItem.put("vocabularyEntryId", vocabId);
+            if (currentDetails != null && (isCorrect || currentAttempt >= 3)) {
+                liveItem.put("details", currentDetails);
+            }
+            appendLiveHistoryItem(state, liveItem);
 
             Map<String, Object> response = new HashMap<>();
             response.put("submissionId", submissionId);
@@ -187,6 +220,28 @@ public class ActiveGamePlayService {
             String subId = CuidUtils.generate();
             persistSubmissionAsync(subId, state.getCurrentRoundId(), participantId, "skip", "skip", false, 3);
 
+            // Record skip into in-memory live history buffer for 0ms multiplayer sync
+            Map<String, String> profile = getParticipantProfile(state, participantId);
+            Map<String, Object> liveSkipItem = new LinkedHashMap<>();
+            liveSkipItem.put("id", "skip_" + subId);
+            liveSkipItem.put("sessionId", sessionId);
+            liveSkipItem.put("roundId", state.getCurrentRoundId());
+            liveSkipItem.put("roundNumber", state.getCurrentRoundNumber() != null ? state.getCurrentRoundNumber() : 1);
+            liveSkipItem.put("promptText", state.getCurrentPromptText() != null ? state.getCurrentPromptText() : "");
+            liveSkipItem.put("promptType", state.getCurrentPromptType() != null ? state.getCurrentPromptType().name() : "KANJI_TO_READING");
+            liveSkipItem.put("rawAnswer", "—");
+            liveSkipItem.put("isCorrect", false);
+            liveSkipItem.put("attemptCount", 3);
+            liveSkipItem.put("participantId", participantId);
+            liveSkipItem.put("participantName", profile.getOrDefault("name", "Player"));
+            liveSkipItem.put("participantAvatarUrl", profile.get("avatarUrl"));
+            liveSkipItem.put("submittedAt", LocalDateTime.now().toString());
+            liveSkipItem.put("vocabularyEntryId", state.getCurrentVocabularyEntryId());
+            if (state.getCurrentVocabularyDetails() != null) {
+                liveSkipItem.put("details", state.getCurrentVocabularyDetails());
+            }
+            appendLiveHistoryItem(state, liveSkipItem);
+
             advanceRoundInMemory(state);
 
             Map<String, Object> response;
@@ -206,6 +261,39 @@ public class ActiveGamePlayService {
     public ActiveGameState getActiveGameState(String sessionId) {
         if (sessionId == null) return null;
         return activeGameStates.get(sessionId);
+    }
+
+    public List<Map<String, Object>> getLiveHistory(String sessionId) {
+        ActiveGameState state = activeGameStates.get(sessionId);
+        if (state == null || state.getLiveHistory() == null || state.getLiveHistory().isEmpty()) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(state.getLiveHistory());
+    }
+
+    private Map<String, String> getParticipantProfile(ActiveGameState state, String participantId) {
+        if (participantId == null) return Map.of("name", "Player");
+        return state.getParticipantProfileCache().computeIfAbsent(participantId, pid -> {
+            GameParticipantEntity p = gameParticipantRepository.findById(pid).orElse(null);
+            String name = p != null && p.getDisplayName() != null && !p.getDisplayName().isBlank() ? p.getDisplayName() : "Player";
+            String avatarUrl = null;
+            if (p != null && p.getUserId() != null) {
+                UserEntity u = userRepository.findById(p.getUserId()).orElse(null);
+                if (u != null) avatarUrl = u.getImage();
+            }
+            Map<String, String> prof = new HashMap<>();
+            prof.put("name", name);
+            if (avatarUrl != null) prof.put("avatarUrl", avatarUrl);
+            return prof;
+        });
+    }
+
+    private void appendLiveHistoryItem(ActiveGameState state, Map<String, Object> item) {
+        if (state == null || item == null) return;
+        state.getLiveHistory().add(0, item);
+        while (state.getLiveHistory().size() > 50) {
+            state.getLiveHistory().remove(state.getLiveHistory().size() - 1);
+        }
     }
 
     public void resetSessionState(String sessionId) {
