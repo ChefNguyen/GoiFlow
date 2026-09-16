@@ -14,6 +14,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GameRoundController {
 
+    // Lombok tự động sinh constructor cho với biến tham chiếu final này
     private final ActiveGamePlayService activeGamePlayService;
 
     @GetMapping("/rounds")
